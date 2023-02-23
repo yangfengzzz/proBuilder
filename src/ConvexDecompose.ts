@@ -94,7 +94,6 @@ export class ConvexDecompose {
             (<any>window).VHACD().then((VHACD) => {
               console.log("VHACD loaded.");
               ConvexDecompose.vhacd = VHACD;
-              debugger;
               resolve();
             }, reject),
           reject
