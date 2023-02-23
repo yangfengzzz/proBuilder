@@ -14,7 +14,7 @@
     "react": "^17.0.0",
     "react-dom": "^17.0.0",
     "dat.gui": "^0.7.7",
-    "@oasis-engine-toolkit/custom-material": "1.0.0-alpha.7",
+    "oasis-engine-toolkit": "1.0.0-alpha.7",
     "oasis-engine": "0.9.0-beta.61",
     "@oasis-engine/physics-physx": "0.9.0-beta.61",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
@@ -33,5 +33,6 @@
     "vite-plugin-replace": "0.1.1",
     "typescript": "^4",
     "vite": "^3"
-  }
+  },
+  "repository": "https://github.com/yangfengzzz/proBuilder.git"
 }
