@@ -18,8 +18,6 @@ engine.resourceManager.load<GLTFResource>("scene.glb").then((gltf) => {
   rootEntity.addChild(gltf.defaultSceneRoot);
 });
 
-ConvexDecompose.initialize().then(() => {
-  debugger;
-});
+ConvexDecompose.initialize().then(() => {});
 
 engine.run();
