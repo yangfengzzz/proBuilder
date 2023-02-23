@@ -84,7 +84,7 @@ export class ConvexDecompose {
       script.async = true;
       script.onload = resolve;
       script.onerror = reject;
-      script.src = "http://30.46.128.35:8000/v_hacd.js";
+      script.src = "v_hacd.js";
     });
 
     return new Promise((resolve, reject) => {

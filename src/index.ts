@@ -9,9 +9,10 @@ import {
   Vector3,
   WebGLEngine,
   BlinnPhongMaterial,
-  DirectLight
+  DirectLight,
+  UnlitMaterial
 } from "oasis-engine";
-import { ConvexDecompose } from "./ConvexDecompose";
+import { ConvexDecompose, Mesh } from "./ConvexDecompose";
 
 const engine = new WebGLEngine("canvas");
 engine.canvas.resizeByClientSize();
@@ -77,17 +78,33 @@ fetch("http://30.46.128.35:9000/bunny.obj")
     const renderer = cubeEntity.addComponent(MeshRenderer);
     renderer.mesh = mesh;
     const material = new BlinnPhongMaterial(engine);
-    material.baseColor = new Color(1, 0.25, 0.25, 1);
+    material.baseColor = new Color(1, 1, 1, 0.5);
+    material.isTransparent = true;
     renderer.setMaterial(material);
+    engine.run();
 
     ConvexDecompose.initialize().then(() => {
       let vertexBuffer = vec3ToFloat64Array(positions);
-      // Optionally configure how the decomposition is performed.
-      const options = { maxHulls: 20 };
       // debugger;
-      let result = ConvexDecompose.computeConvexHulls({ positions: vertexBuffer, indices: indexBuffer }, options);
-      debugger;
+      new Promise((resolve, reject) => {
+        // Optionally configure how the decomposition is performed.
+        const options = { maxHulls: 20 };
+        resolve(ConvexDecompose.computeConvexHulls({ positions: vertexBuffer, indices: indexBuffer }, options));
+      }).then((result: Mesh[]) => {
+        for (let i = 0; i < result.length; i++) {
+          const mesh = new ModelMesh(engine);
+          mesh.setPositions(arrayToVec3(result[i].positions));
+          mesh.setIndices(result[i].indices);
+          mesh.addSubMesh(0, result[i].indices.length, MeshTopology.Triangles);
+          mesh.uploadData(false);
+
+          let entity = cubeEntity.createChild();
+          const renderer = entity.addComponent(MeshRenderer);
+          renderer.mesh = mesh;
+          const material = new UnlitMaterial(engine);
+          material.baseColor = new Color(Math.random(), Math.random(), Math.random(), 1);
+          renderer.setMaterial(material);
+        }
+      });
     });
   });
-
-engine.run();
