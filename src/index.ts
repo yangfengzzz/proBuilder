@@ -75,12 +75,12 @@ fetch("http://30.46.128.35:9000/bunny.obj")
 
     // init cube
     const cubeEntity = rootEntity.createChild("cube");
-    const renderer = cubeEntity.addComponent(MeshRenderer);
-    renderer.mesh = mesh;
+    const mainRenderer = cubeEntity.addComponent(MeshRenderer);
+    mainRenderer.mesh = mesh;
     const material = new BlinnPhongMaterial(engine);
     material.baseColor = new Color(1, 1, 1, 0.5);
     material.isTransparent = true;
-    renderer.setMaterial(material);
+    mainRenderer.setMaterial(material);
     engine.run();
 
     ConvexDecompose.initialize().then(() => {
@@ -104,6 +104,8 @@ fetch("http://30.46.128.35:9000/bunny.obj")
           const material = new UnlitMaterial(engine);
           material.baseColor = new Color(Math.random(), Math.random(), Math.random(), 1);
           renderer.setMaterial(material);
+
+          mainRenderer.destroy();
         }
       });
     });
