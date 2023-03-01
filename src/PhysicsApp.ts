@@ -37,7 +37,6 @@ function addBox(rootEntity: Entity, size: Vector3, position: Vector3, rotation: 
   renderer.mesh = PrimitiveMesh.createCuboid(rootEntity.engine, size.x, size.y, size.z);
   renderer.setMaterial(mtl);
   boxEntity.transform.position = position;
-  console.log("renderer", renderer);
 
   //boxEntity.transform.rotationQuaternion = rotation;
   boxEntity.transform.rotate(new Vector3(0, 60, 0));
@@ -45,14 +44,13 @@ function addBox(rootEntity: Entity, size: Vector3, position: Vector3, rotation: 
 
   const physicsBox = new BoxColliderShape();
   physicsBox.size = size;
-  physicsBox.rotation = new Vector3(0, 0, 0);
   if (isStatic) {
-    physicsBox.isTrigger = true;
+    // physicsBox.isTrigger = true;
     const boxCollider = boxEntity.addComponent(StaticCollider);
     boxCollider.addShape(physicsBox);
   } else {
     const boxCollider = boxEntity.addComponent(DynamicCollider);
-    // boxCollider.isKinematic = true;
+    boxCollider.isKinematic = true;
     boxCollider.addShape(physicsBox);
   }
 
@@ -100,7 +98,7 @@ PhysXPhysics.initialize().then(() => {
 
   // camera
   const cameraEntity = rootEntity.createChild("camera_node");
-  cameraEntity.transform.position.set(4, 4, -4);
+  cameraEntity.transform.position.set(0, 10, 0);
   cameraEntity.addComponent(Camera);
   cameraEntity.addComponent(OrbitControl);
 
@@ -118,15 +116,12 @@ PhysXPhysics.initialize().then(() => {
   sky.mesh = PrimitiveMesh.createCuboid(engine, 1, 1, 1);
 
   const slope = new Quaternion();
-  Quaternion.rotationEuler(0, 0, 0, slope);
-  const boxEntity = addBox(rootEntity, new Vector3(2, 2, 2), new Vector3(0, 0, 2), slope.normalize(), false);
-  addBox(rootEntity, new Vector3(2, 2, 2), new Vector3(3, 0, 2), slope.normalize(), true);
+  const boxEntity = addBox(rootEntity, new Vector3(2, 2, 2), new Vector3(0, 0, 0), slope, true);
+  addBox(rootEntity, new Vector3(2, 2, 2), new Vector3(3, 0, 0), slope, true);
   class Move extends Script {
-    private positionX = 0;
-    private flag = true;
     onUpdate() {
-      const { x, y, z } = this.entity.transform.position;
-      this.entity.transform.setPosition(x + 0.005, y, z);
+      const { x, y, z } = this.entity.transform.worldPosition;
+      this.entity.transform.setWorldPosition(x + 0.01, y, z);
     }
   }
   boxEntity.addComponent(Move);
