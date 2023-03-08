@@ -9,6 +9,7 @@ import {
   Vector3,
   WebGLEngine
 } from "oasis-engine";
+import { MeshRenderer, PrimitiveMesh, UnlitMaterial } from "../../oasis-engine/packages/core";
 async function init() {
   const engine = new WebGLEngine("canvas");
   engine.canvas.resizeByClientSize();
@@ -27,6 +28,12 @@ async function init() {
   const control = cameraEntity.addComponent(OrbitControl);
   control.target = new Vector3(30, 0, 5);
 
+  const boxEntity = rootEntity.createChild("light");
+  boxEntity.transform.worldPosition.set(30, 5, 5);
+  const renderer = boxEntity.addComponent(MeshRenderer);
+  renderer.mesh = PrimitiveMesh.createSphere(engine, 2);
+  renderer.setMaterial(new UnlitMaterial(engine));
+
   // Create light entity and component
   const lightEntity = rootEntity.createChild("light");
   lightEntity.transform.setPosition(0.5, 0.9, 0);
@@ -36,7 +43,7 @@ async function init() {
   // Enable shadow
   directLight.shadowType = ShadowType.SoftLow;
 
-  const glTFResource = await engine.resourceManager.load<GLTFResource>("normal/HZ_Environment_wilan_LGH.gltf");
+  const glTFResource = await engine.resourceManager.load<GLTFResource>("withNormal/HZ_Environment_wilan_LGH.gltf");
   rootEntity.addChild(glTFResource.defaultSceneRoot);
 
   const ambientLight = await engine.resourceManager.load<AmbientLight>({
