@@ -91,7 +91,7 @@ PhysXPhysics.initialize().then(() => {
 
   rootEntity.addComponent(MeshRenderer);
   const wireframe = rootEntity.addComponent(WireframeManager); // debug draw
-  // wireframe.addEntityWireframe(sphereEntity);
+  wireframe.addEntityWireframe(sphereEntity);
   wireframe.addEntityWireframe(boxEntity);
 
   class MoveScript extends Script {

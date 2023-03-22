@@ -133,7 +133,6 @@ export class WireframePrimitive {
     let offset = positionOffset;
     // Up
     positions[offset++].set(-halfWidth, halfHeight, -halfDepth);
-    positions[offset++].set(-halfWidth, halfHeight, -halfDepth);
     positions[offset++].set(halfWidth, halfHeight, -halfDepth);
     positions[offset++].set(halfWidth, halfHeight, halfDepth);
     positions[offset++].set(-halfWidth, halfHeight, halfDepth);

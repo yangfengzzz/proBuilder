@@ -375,7 +375,6 @@ export class WireframeManager extends Script {
 
     this._indicesCount += sphereIndicesCount;
     this._wireframeElements.push(new WireframeElement(transform, positionsOffset));
-    debugger;
   }
 
   /**
@@ -547,7 +546,6 @@ export class WireframeManager extends Script {
       mesh.subMesh.count = indicesCount;
     }
 
-    debugger;
     if (indicesCount === 0) {
       this._renderer.setMaterial(null);
     } else {
