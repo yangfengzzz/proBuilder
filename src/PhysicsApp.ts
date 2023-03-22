@@ -48,9 +48,10 @@ PhysXPhysics.initialize().then(() => {
 
   const boxMtl = new PBRMaterial(engine);
   const boxRenderer = boxEntity.addComponent(MeshRenderer);
-  boxMtl.baseColor.set(0.6, 0.3, 0.3, 1.0);
+  boxMtl.baseColor.set(0.6, 0.3, 0.3, 0.5);
   boxMtl.roughness = 0.5;
   boxMtl.metallic = 0.0;
+  boxMtl.isTransparent = true;
   boxRenderer.mesh = PrimitiveMesh.createCuboid(engine, cubeSize, cubeSize, cubeSize);
   boxRenderer.setMaterial(boxMtl);
 
@@ -71,9 +72,10 @@ PhysXPhysics.initialize().then(() => {
 
   const sphereMtl = new PBRMaterial(engine);
   const sphereRenderer = sphereEntity.addComponent(MeshRenderer);
-  sphereMtl.baseColor.set(Math.random(), Math.random(), Math.random(), 1.0);
+  sphereMtl.baseColor.set(Math.random(), Math.random(), Math.random(), 0.5);
   sphereMtl.metallic = 0.0;
   sphereMtl.roughness = 0.5;
+  sphereMtl.isTransparent = true;
   sphereRenderer.mesh = PrimitiveMesh.createSphere(engine, radius);
   sphereRenderer.setMaterial(sphereMtl);
 
@@ -89,8 +91,8 @@ PhysXPhysics.initialize().then(() => {
 
   rootEntity.addComponent(MeshRenderer);
   const wireframe = rootEntity.addComponent(WireframeManager); // debug draw
-  wireframe.addEntityWireframe(sphereEntity);
-  // wireframe.addEntityWireframe(boxEntity);
+  // wireframe.addEntityWireframe(sphereEntity);
+  wireframe.addEntityWireframe(boxEntity);
 
   class MoveScript extends Script {
     pos: number = -5;
