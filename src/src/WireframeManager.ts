@@ -22,9 +22,9 @@ import {
   SpotLight,
   Transform,
   Vector3,
-  DependentMode
+  DependentMode,
+  UnlitMaterial
 } from "oasis-engine";
-import { PlainColorMaterial } from "@oasis-engine-toolkit/custom-material";
 import { WireframePrimitive } from "./WireframePrimitive";
 
 /**
@@ -66,7 +66,7 @@ export class WireframeManager extends Script {
   private _wireframeRenderers: Renderer[] = [];
   private _wireframeElements: WireframeElement[] = [];
   private _renderer: MeshRenderer;
-  private _material: PlainColorMaterial;
+  private _material: UnlitMaterial;
   private _mesh: ModelMesh;
 
   private static _getPositionFromPool(positionIndex: number): Vector3 {
@@ -433,7 +433,7 @@ export class WireframeManager extends Script {
   onAwake(): void {
     const engine = this.engine;
     const mesh = new ModelMesh(engine);
-    const material = new PlainColorMaterial(engine);
+    const material = new UnlitMaterial(engine);
     const renderer = this.entity.getComponent(MeshRenderer);
     renderer.castShadows = false;
     renderer.receiveShadows = false;

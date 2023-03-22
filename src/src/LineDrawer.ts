@@ -2,15 +2,16 @@ import {
   dependentComponents,
   DependentMode,
   GLCapabilityType,
+  Material,
   Matrix,
   MeshRenderer,
   MeshTopology,
   ModelMesh,
   Script,
+  UnlitMaterial,
   Vector3
 } from "oasis-engine";
 import { WireframePrimitive } from "./WireframePrimitive";
-import { PlainColorMaterial } from "@oasis-engine-toolkit/custom-material";
 
 /**
  * Line Drawer.
@@ -24,7 +25,7 @@ export class LineDrawer extends Script {
   private static _indicesCount: number = 0;
   private static _supportUint32Array: boolean;
   private _renderer: MeshRenderer;
-  private _material: PlainColorMaterial;
+  private _material: Material;
   private _mesh: ModelMesh;
 
   /**
@@ -198,7 +199,7 @@ export class LineDrawer extends Script {
   onAwake(): void {
     const engine = this.engine;
     const mesh = new ModelMesh(engine);
-    const material = new PlainColorMaterial(engine);
+    const material = new UnlitMaterial(engine);
     const renderer = this.entity.getComponent(MeshRenderer);
     renderer.castShadows = false;
     renderer.receiveShadows = false;
