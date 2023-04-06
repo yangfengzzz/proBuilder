@@ -7,6 +7,7 @@ import {
   MeshRenderer,
   MeshTopology,
   ModelMesh,
+  RenderFace,
   Script,
   UnlitMaterial,
   Vector3
@@ -19,7 +20,7 @@ import { WireframePrimitive } from "./WireframePrimitive";
  */
 @dependentComponents(DependentMode.CheckOnly, MeshRenderer)
 export class LineDrawer extends Script {
-  private static _positions: Vector3[];
+  private static _positions: Vector3[] = [];
   private static _positionCount: number = 0;
   private static _indices: Uint16Array | Uint32Array;
   private static _indicesCount: number = 0;
@@ -200,6 +201,7 @@ export class LineDrawer extends Script {
     const engine = this.engine;
     const mesh = new ModelMesh(engine);
     const material = new UnlitMaterial(engine);
+    material.renderFace = RenderFace.Double;
     const renderer = this.entity.getComponent(MeshRenderer);
     renderer.castShadows = false;
     renderer.receiveShadows = false;
@@ -222,9 +224,10 @@ export class LineDrawer extends Script {
     LineDrawer._supportUint32Array = supportUint32Array;
   }
 
-  onUpdate(deltaTime: number) {
+  onLateUpdate(deltaTime: number) {
     const { _mesh: mesh } = this;
 
+    debugger;
     if (LineDrawer._positionCount > 0) {
       mesh.setPositions(LineDrawer._positions);
       mesh.setIndices(LineDrawer._indices);

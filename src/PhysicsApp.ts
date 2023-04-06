@@ -18,7 +18,7 @@ import {
 } from "oasis-engine";
 
 import { PhysXPhysics } from "@oasis-engine/physics-physx";
-import { WireframeManager } from "./src";
+import { LineDrawer, WireframeManager } from "./src";
 
 PhysXPhysics.initialize().then(() => {
   const engine = new WebGLEngine("canvas");
@@ -34,7 +34,7 @@ PhysXPhysics.initialize().then(() => {
   // init camera
   const cameraEntity = rootEntity.createChild("camera");
   cameraEntity.addComponent(Camera);
-  cameraEntity.transform.setPosition(10, 10, 10);
+  cameraEntity.transform.setPosition(10, 0, 10);
   cameraEntity.transform.lookAt(new Vector3());
 
   // init point light
@@ -42,57 +42,55 @@ PhysXPhysics.initialize().then(() => {
   light.transform.setPosition(0, 3, 0);
   light.addComponent(PointLight);
 
-  // create box test entity
-  const cubeSize = 2.0;
-  const boxEntity = rootEntity.createChild("BoxEntity");
-
-  const boxMtl = new PBRMaterial(engine);
-  const boxRenderer = boxEntity.addComponent(MeshRenderer);
-  boxMtl.baseColor.set(0.6, 0.3, 0.3, 0.5);
-  boxMtl.roughness = 0.5;
-  boxMtl.metallic = 0.0;
-  boxMtl.isTransparent = true;
-  boxRenderer.mesh = PrimitiveMesh.createCuboid(engine, cubeSize, cubeSize, cubeSize);
-  boxRenderer.setMaterial(boxMtl);
-
-  const physicsBox = new BoxColliderShape();
-  physicsBox.size = new Vector3(cubeSize, cubeSize, cubeSize);
-  physicsBox.material.staticFriction = 0.1;
-  physicsBox.material.dynamicFriction = 0.2;
-  physicsBox.material.bounciness = 1;
-  physicsBox.isTrigger = true;
-
-  const boxCollider = boxEntity.addComponent(StaticCollider);
-  boxCollider.addShape(physicsBox);
-
-  // create sphere test entity
-  const radius = 1.25;
-  const sphereEntity = rootEntity.createChild("SphereEntity");
-  sphereEntity.transform.setPosition(-2, 0, 0);
-
-  const sphereMtl = new PBRMaterial(engine);
-  const sphereRenderer = sphereEntity.addComponent(MeshRenderer);
-  sphereMtl.baseColor.set(Math.random(), Math.random(), Math.random(), 0.5);
-  sphereMtl.metallic = 0.0;
-  sphereMtl.roughness = 0.5;
-  sphereMtl.isTransparent = true;
-  sphereRenderer.mesh = PrimitiveMesh.createSphere(engine, radius);
-  sphereRenderer.setMaterial(sphereMtl);
-
-  const physicsSphere = new SphereColliderShape();
-  physicsSphere.radius = radius;
-  physicsSphere.material.staticFriction = 0.1;
-  physicsSphere.material.dynamicFriction = 0.2;
-  physicsSphere.material.bounciness = 1;
-
-  const sphereCollider = sphereEntity.addComponent(DynamicCollider);
-  sphereCollider.isKinematic = true;
-  sphereCollider.addShape(physicsSphere);
+  // // create box test entity
+  // const cubeSize = 2.0;
+  // const boxEntity = rootEntity.createChild("BoxEntity");
+  //
+  // const boxMtl = new PBRMaterial(engine);
+  // const boxRenderer = boxEntity.addComponent(MeshRenderer);
+  // boxMtl.baseColor.set(0.6, 0.3, 0.3, 0.5);
+  // boxMtl.roughness = 0.5;
+  // boxMtl.metallic = 0.0;
+  // boxMtl.isTransparent = true;
+  // boxRenderer.mesh = PrimitiveMesh.createCuboid(engine, cubeSize, cubeSize, cubeSize);
+  // boxRenderer.setMaterial(boxMtl);
+  //
+  // const physicsBox = new BoxColliderShape();
+  // physicsBox.size = new Vector3(cubeSize, cubeSize, cubeSize);
+  // physicsBox.material.staticFriction = 0.1;
+  // physicsBox.material.dynamicFriction = 0.2;
+  // physicsBox.material.bounciness = 1;
+  // physicsBox.isTrigger = true;
+  //
+  // const boxCollider = boxEntity.addComponent(StaticCollider);
+  // boxCollider.addShape(physicsBox);
+  //
+  // // create sphere test entity
+  // const radius = 1.25;
+  // const sphereEntity = rootEntity.createChild("SphereEntity");
+  // sphereEntity.transform.setPosition(-2, 0, 0);
+  //
+  // const sphereMtl = new PBRMaterial(engine);
+  // const sphereRenderer = sphereEntity.addComponent(MeshRenderer);
+  // sphereMtl.baseColor.set(Math.random(), Math.random(), Math.random(), 0.5);
+  // sphereMtl.metallic = 0.0;
+  // sphereMtl.roughness = 0.5;
+  // sphereMtl.isTransparent = true;
+  // sphereRenderer.mesh = PrimitiveMesh.createSphere(engine, radius);
+  // sphereRenderer.setMaterial(sphereMtl);
+  //
+  // const physicsSphere = new SphereColliderShape();
+  // physicsSphere.radius = radius;
+  // physicsSphere.material.staticFriction = 0.1;
+  // physicsSphere.material.dynamicFriction = 0.2;
+  // physicsSphere.material.bounciness = 1;
+  //
+  // const sphereCollider = sphereEntity.addComponent(DynamicCollider);
+  // sphereCollider.isKinematic = true;
+  // sphereCollider.addShape(physicsSphere);
 
   rootEntity.addComponent(MeshRenderer);
-  const wireframe = rootEntity.addComponent(WireframeManager); // debug draw
-  wireframe.addEntityWireframe(sphereEntity);
-  wireframe.addEntityWireframe(boxEntity);
+  rootEntity.addComponent(LineDrawer); // debug draw
 
   class MoveScript extends Script {
     pos: number = -5;
@@ -134,8 +132,20 @@ PhysXPhysics.initialize().then(() => {
     onTriggerStay(other: ColliderShape) {}
   }
 
-  sphereEntity.addComponent(CollisionScript);
-  sphereEntity.addComponent(MoveScript);
+  class DrawScript extends Script {
+    onUpdate(deltaTime: number) {
+      LineDrawer.drawLine(new Vector3(0, 0, 0), new Vector3(1, 2, 0));
+      LineDrawer.drawLine(new Vector3(1, 2, 0), new Vector3(2, 1, 0));
+      LineDrawer.drawLine(new Vector3(2, 1, 0), new Vector3(0, 0, 0));
+      LineDrawer.drawSphere(2, new Vector3(-4, 0, 0));
+      LineDrawer.drawCapsule(2, 2, new Vector3(4, 0, 0));
+      LineDrawer.drawCuboid(2, 3, 4, new Vector3(0, 0, 0));
+    }
+  }
+
+  // sphereEntity.addComponent(CollisionScript);
+  // sphereEntity.addComponent(MoveScript);
+  rootEntity.addComponent(DrawScript);
 
   engine.resourceManager
     .load<AmbientLight>({
