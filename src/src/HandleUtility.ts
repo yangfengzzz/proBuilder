@@ -1,4 +1,6 @@
-import { HitResult, Matrix, ModelMesh, Ray, Transform, Vector3 } from "oasis-engine";
+import { Matrix, ModelMesh, Ray, Transform, Vector3, Color } from "oasis-engine";
+import { SelectionResult } from "./SelectionResult";
+import { LineDrawer } from "./LineDrawer";
 
 export enum CullingMode {
   None = 0,
@@ -15,6 +17,7 @@ export class HandleUtility {
   private static tempVec3 = new Vector3();
   private static tempVec4 = new Vector3();
   private static tempVec5 = new Vector3();
+  private static color = new Color(1, 0, 0);
 
   /**
    * Find the nearest face intersected by InWorldRay on this pb_Object.
@@ -30,7 +33,7 @@ export class HandleUtility {
     worldRay: Ray,
     mesh: ModelMesh,
     transform: Transform,
-    hit: HitResult,
+    hit: SelectionResult,
     distance: number = Number.MAX_VALUE,
     cullingMode: CullingMode = CullingMode.Back
   ): boolean {
@@ -81,7 +84,12 @@ export class HandleUtility {
         OutHitPoint = dist;
       }
     }
-    return false;
+
+    hit.distance = OutHitPoint;
+    hit.face = OutHitFace;
+    hit.normal.copyFrom(OutNrm);
+    worldRay.getPoint(OutHitPoint, hit.point);
+    return OutHitFace > -1;
   }
 
   /**
@@ -159,5 +167,25 @@ export class HandleUtility {
     }
 
     return -1;
+  }
+
+  static highlightFace(mesh: ModelMesh, transform: Transform, hit: SelectionResult) {
+    const face = hit.face;
+    const positions = mesh.getPositions();
+    const indices = mesh.getIndices();
+
+    const p1 = positions[indices[face * 3]];
+    const p2 = positions[indices[face * 3 + 1]];
+    const p3 = positions[indices[face * 3 + 2]];
+
+    const wp1 = new Vector3();
+    Vector3.transformCoordinate(p1, transform.worldMatrix, wp1);
+    const wp2 = new Vector3();
+    Vector3.transformCoordinate(p2, transform.worldMatrix, wp2);
+    const wp3 = new Vector3();
+    Vector3.transformCoordinate(p3, transform.worldMatrix, wp3);
+    LineDrawer.drawColorLine(wp1, wp2, HandleUtility.color, HandleUtility.color);
+    LineDrawer.drawColorLine(wp1, wp3, HandleUtility.color, HandleUtility.color);
+    LineDrawer.drawColorLine(wp3, wp2, HandleUtility.color, HandleUtility.color);
   }
 }

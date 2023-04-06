@@ -19,7 +19,7 @@ import { PlainColorMaterial } from "./PlainColorMaterial";
  * Line Drawer.
  * @decorator `@dependentComponents(MeshRenderer)`
  */
-@dependentComponents(DependentMode.CheckOnly, MeshRenderer)
+@dependentComponents(MeshRenderer, DependentMode.CheckOnly)
 export class LineDrawer extends Script {
   private static _positions: Vector3[] = [];
   private static _colors: Color[] = [];
@@ -254,6 +254,7 @@ export class LineDrawer extends Script {
 
     if (LineDrawer._positionCount > 0) {
       mesh.setPositions(LineDrawer._positions);
+      mesh.setColors(LineDrawer._colors);
       mesh.setIndices(LineDrawer._indices);
       mesh.uploadData(false);
       mesh.subMesh.count = LineDrawer._indicesCount;

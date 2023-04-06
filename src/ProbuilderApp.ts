@@ -7,14 +7,19 @@ import {
   Script,
   AmbientLight,
   AssetType,
-  Color
+  Ray,
+  PrimitiveMesh,
+  PBRMaterial,
+  ModelMesh,
+  Transform
 } from "oasis-engine";
 
 import { LineDrawer } from "./src";
-import { PointDrawer } from "./src/PointDrawer";
+import { HandleUtility } from "./src/HandleUtility";
+import { SelectionResult } from "./src/SelectionResult";
+import { OrbitControl } from "@oasis-engine-toolkit/controls";
 
-const engine = new WebGLEngine("canvas");
-
+const engine = await WebGLEngine.create({ canvas: "canvas" });
 engine.canvas.resizeByClientSize();
 const scene = engine.sceneManager.activeScene;
 const rootEntity = scene.createRootEntity("root");
@@ -26,31 +31,56 @@ scene.ambientLight.diffuseIntensity = 1.2;
 const cameraEntity = rootEntity.createChild("camera");
 cameraEntity.addComponent(Camera);
 cameraEntity.transform.setPosition(10, 0, 10);
-cameraEntity.transform.lookAt(new Vector3());
+cameraEntity.addComponent(OrbitControl);
 
 // init point light
 const light = rootEntity.createChild("light");
 light.transform.setPosition(0, 3, 0);
 light.addComponent(PointLight);
 
+const meshEntity = rootEntity.createChild();
+const meshRenderer = meshEntity.addComponent(MeshRenderer);
+meshRenderer.mesh = PrimitiveMesh.createCuboid(engine, 1, 1, 1, false);
+const mtl = new PBRMaterial(engine);
+mtl.baseColor.set(1, 1, 1, 0.5);
+mtl.isTransparent = true;
+meshRenderer.setMaterial(mtl);
+
 const lineDrawer = rootEntity.createChild();
 lineDrawer.addComponent(MeshRenderer);
 lineDrawer.addComponent(LineDrawer);
 
-class DrawScript extends Script {
-  onUpdate(deltaTime: number) {
-    LineDrawer.drawColorLine(new Vector3(1, 2, 0), new Vector3(-2, 1, 0), new Color(1, 0, 0), new Color(1, 0, 0));
+class SelectScript extends Script {
+  mesh: ModelMesh;
+  transform: Transform;
+  ray = new Ray();
+  hit = new SelectionResult();
+  camera: Camera;
 
-    // LineDrawer.drawLine(new Vector3(0, 0, 0), new Vector3(1, 2, 0));
-    // LineDrawer.drawLine(new Vector3(1, 2, 0), new Vector3(2, 1, 0));
-    // LineDrawer.drawLine(new Vector3(2, 1, 0), new Vector3(0, 0, 0));
-    // LineDrawer.drawSphere(2, new Vector3(-4, 0, 0));
-    // LineDrawer.drawCapsule(2, 2, new Vector3(4, 0, 0));
-    // LineDrawer.drawCuboid(2, 3, 4, new Vector3(0, 0, 0));
+  onAwake() {
+    this.camera = this.entity.getComponent(Camera);
+  }
+
+  onUpdate(deltaTime: number) {
+    const { engine, ray } = this;
+    const { inputManager } = engine;
+    const { pointers } = inputManager;
+    if (!pointers) {
+      return;
+    }
+    for (let i = pointers.length - 1; i >= 0; i--) {
+      const pointer = pointers[i];
+      this.camera.screenPointToRay(pointer.position, ray);
+      if (HandleUtility.FaceRaycast(ray, this.mesh, this.transform, this.hit)) {
+        HandleUtility.highlightFace(this.mesh, this.transform, this.hit);
+      }
+    }
   }
 }
 
-rootEntity.addComponent(DrawScript);
+const selectScript = cameraEntity.addComponent(SelectScript);
+selectScript.mesh = <ModelMesh>meshRenderer.mesh;
+selectScript.transform = meshEntity.transform;
 
 engine.resourceManager
   .load<AmbientLight>({
