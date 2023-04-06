@@ -239,6 +239,8 @@ export class HandleUtility {
 
       if (dist < maxDistance) {
         const entry = new VertexPickerEntry();
+        entry.transform = transform;
+        entry.mesh = mesh;
         entry.distance = dist;
         entry.worldPosition.copyFrom(wPos);
         entry.vertex = index;
