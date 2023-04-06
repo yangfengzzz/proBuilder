@@ -30,7 +30,7 @@ scene.ambientLight.diffuseIntensity = 1.2;
 // init camera
 const cameraEntity = rootEntity.createChild("camera");
 cameraEntity.addComponent(Camera);
-cameraEntity.transform.setPosition(10, 0, 10);
+cameraEntity.transform.setPosition(5, 5, 5);
 cameraEntity.addComponent(OrbitControl);
 
 // init point light
@@ -54,6 +54,7 @@ class SelectScript extends Script {
   mesh: ModelMesh;
   transform: Transform;
   ray = new Ray();
+  mouse = new Vector3();
   hit = new SelectionResult();
   camera: Camera;
 
@@ -62,6 +63,29 @@ class SelectScript extends Script {
   }
 
   onUpdate(deltaTime: number) {
+    // this.faceRaycast();
+    this.vertexRaycast();
+  }
+
+  vertexRaycast() {
+    const { engine, mouse } = this;
+    const { inputManager } = engine;
+    const { pointers } = inputManager;
+    if (!pointers) {
+      return;
+    }
+    for (let i = pointers.length - 1; i >= 0; i--) {
+      const pointer = pointers[i];
+      this.camera.screenToWorldPoint(new Vector3(pointer.position.x, pointer.position.y, 0), mouse);
+      const entry = HandleUtility.vertexRaycast(this.camera, this.mesh, this.transform, mouse);
+
+      if (entry != null) {
+        HandleUtility.highlightVertex(this.camera, entry);
+      }
+    }
+  }
+
+  faceRaycast() {
     const { engine, ray } = this;
     const { inputManager } = engine;
     const { pointers } = inputManager;
@@ -71,7 +95,7 @@ class SelectScript extends Script {
     for (let i = pointers.length - 1; i >= 0; i--) {
       const pointer = pointers[i];
       this.camera.screenPointToRay(pointer.position, ray);
-      if (HandleUtility.FaceRaycast(ray, this.mesh, this.transform, this.hit)) {
+      if (HandleUtility.faceRaycast(ray, this.mesh, this.transform, this.hit)) {
         HandleUtility.highlightFace(this.mesh, this.transform, this.hit);
       }
     }
