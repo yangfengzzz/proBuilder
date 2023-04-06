@@ -76,7 +76,7 @@ class SelectScript extends Script {
     }
     for (let i = pointers.length - 1; i >= 0; i--) {
       const pointer = pointers[i];
-      this.camera.screenToWorldPoint(new Vector3(pointer.position.x, pointer.position.y, 0), mouse);
+      mouse.set(pointer.position.x, pointer.position.y, 1);
       const entry = HandleUtility.vertexRaycast(this.camera, this.mesh, this.transform, mouse);
 
       if (entry != null) {

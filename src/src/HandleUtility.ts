@@ -219,9 +219,10 @@ export class HandleUtility {
   }
 
   static getNearestVertices(
+    cam: Camera,
     mesh: ModelMesh,
     transform: Transform,
-    mouseWorldPosition: Vector3,
+    mousePosition: Vector3,
     list: VertexPickerEntry[],
     maxDistance: number,
     distModifier: number
@@ -231,7 +232,9 @@ export class HandleUtility {
     const v = HandleUtility.tempVec1;
     for (let index = 0, c = positions.length; index < c; index++) {
       Vector3.transformCoordinate(positions[index], transform.worldMatrix, v);
-      const dist = Vector3.distanceSquared(v, mouseWorldPosition) * distModifier;
+      cam.worldToScreenPoint(v, v);
+      mousePosition.z = v.z;
+      const dist = Vector3.distanceSquared(v, mousePosition) * distModifier;
 
       if (dist < maxDistance) {
         const entry = new VertexPickerEntry();
@@ -246,21 +249,15 @@ export class HandleUtility {
     return matches;
   }
 
-  static vertexRaycast(
-    cam: Camera,
-    mesh: ModelMesh,
-    transform: Transform,
-    mouseWorldPosition: Vector3
-  ): VertexPickerEntry {
+  static vertexRaycast(cam: Camera, mesh: ModelMesh, transform: Transform, mousePosition: Vector3): VertexPickerEntry {
     const nearestVertices = HandleUtility.nearestVertices;
     const maxDistance = 10;
     nearestVertices.length = 0;
-    HandleUtility.getNearestVertices(mesh, transform, mouseWorldPosition, nearestVertices, maxDistance, 1);
+    HandleUtility.getNearestVertices(cam, mesh, transform, mousePosition, nearestVertices, maxDistance, 1);
 
     nearestVertices.sort((a, b) => a.distance - b.distance);
-
     for (let i = 0; i < nearestVertices.length; i++) {
-      if (!HandleUtility.pointIsOccluded(cam, mesh, transform, mouseWorldPosition)) {
+      if (!HandleUtility.pointIsOccluded(cam, mesh, transform, mousePosition)) {
         return nearestVertices[i];
       }
     }
@@ -273,14 +270,15 @@ export class HandleUtility {
     const up = cam.entity.transform.worldUp;
     const right = cam.entity.transform.worldRight;
     const wp1 = HandleUtility.tempVec1;
-    wp1.set(pos.x + up.x * 0.5, pos.y + up.y * 0.5, pos.z + up.z * 0.5);
+    const scale = 0.5 * 0.5;
+    wp1.set(pos.x + up.x * scale, pos.y + up.y * scale, pos.z + up.z * scale);
     const wp2 = HandleUtility.tempVec2;
-    wp2.set(pos.x - up.x * 0.5, pos.y - up.y * 0.5, pos.z - up.z * 0.5);
+    wp2.set(pos.x - up.x * scale, pos.y - up.y * scale, pos.z - up.z * scale);
     const wp3 = HandleUtility.tempVec3;
-    wp3.set(pos.x + right.x * 0.5, pos.y + right.y * 0.5, pos.z + right.z * 0.5);
+    wp3.set(pos.x + right.x * scale, pos.y + right.y * scale, pos.z + right.z * scale);
     const wp4 = HandleUtility.tempVec4;
-    wp4.set(pos.x - right.x * 0.5, pos.y - right.y * 0.5, pos.z - right.z * 0.5);
+    wp4.set(pos.x - right.x * scale, pos.y - right.y * scale, pos.z - right.z * scale);
     LineDrawer.drawColorLine(wp1, wp2, HandleUtility.color, HandleUtility.color);
-    LineDrawer.drawColorLine(wp2, wp4, HandleUtility.color, HandleUtility.color);
+    LineDrawer.drawColorLine(wp3, wp4, HandleUtility.color, HandleUtility.color);
   }
 }
