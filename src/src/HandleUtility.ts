@@ -254,7 +254,7 @@ export class HandleUtility {
 
   static vertexRaycast(cam: Camera, mesh: ModelMesh, transform: Transform, mousePosition: Vector3): VertexPickerEntry {
     const nearestVertices = HandleUtility.nearestVertices;
-    const maxDistance = 100;
+    const maxDistance = 500;
     nearestVertices.length = 0;
     HandleUtility.getNearestVertices(cam, mesh, transform, mousePosition, nearestVertices, maxDistance, 1);
 
