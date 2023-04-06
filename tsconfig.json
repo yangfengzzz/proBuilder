@@ -10,6 +10,7 @@
     "resolveJsonModule": true,
     "jsx": "react",
     "declarationDir": "./types",
+    "experimentalDecorators": true
   },
   "exclude": [
     "./vite.config.ts",

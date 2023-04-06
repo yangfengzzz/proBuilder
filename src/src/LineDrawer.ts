@@ -227,7 +227,6 @@ export class LineDrawer extends Script {
   onLateUpdate(deltaTime: number) {
     const { _mesh: mesh } = this;
 
-    debugger;
     if (LineDrawer._positionCount > 0) {
       mesh.setPositions(LineDrawer._positions);
       mesh.setIndices(LineDrawer._indices);
