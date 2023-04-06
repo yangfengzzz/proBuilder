@@ -9,10 +9,11 @@ import {
   ModelMesh,
   RenderFace,
   Script,
-  UnlitMaterial,
-  Vector3
+  Vector3,
+  Color
 } from "oasis-engine";
 import { WireframePrimitive } from "./WireframePrimitive";
+import { PlainColorMaterial } from "./PlainColorMaterial";
 
 /**
  * Line Drawer.
@@ -21,6 +22,7 @@ import { WireframePrimitive } from "./WireframePrimitive";
 @dependentComponents(DependentMode.CheckOnly, MeshRenderer)
 export class LineDrawer extends Script {
   private static _positions: Vector3[] = [];
+  private static _colors: Color[] = [];
   private static _positionCount: number = 0;
   private static _indices: Uint16Array | Uint32Array;
   private static _indicesCount: number = 0;
@@ -42,7 +44,7 @@ export class LineDrawer extends Script {
    * @param to - to position
    */
   static drawLine(from: Vector3, to: Vector3) {
-    LineDrawer._growthPosition(2);
+    LineDrawer._growthPositionColor(2);
     LineDrawer._growthIndexMemory(2);
     LineDrawer._indices[LineDrawer._indicesCount++] = LineDrawer._positionCount;
     LineDrawer._indices[LineDrawer._indicesCount++] = LineDrawer._positionCount + 1;
@@ -56,6 +58,29 @@ export class LineDrawer extends Script {
   }
 
   /**
+   * Draws a line starting at from towards to.
+   * @param from - from position
+   * @param to - to position
+   * @param fromColor
+   * @param toColor
+   */
+  static drawColorLine(from: Vector3, to: Vector3, fromColor: Color, toColor: Color) {
+    LineDrawer._growthPositionColor(2);
+    LineDrawer._growthIndexMemory(2);
+    LineDrawer._indices[LineDrawer._indicesCount++] = LineDrawer._positionCount;
+    LineDrawer._indices[LineDrawer._indicesCount++] = LineDrawer._positionCount + 1;
+    if (LineDrawer.matrix == null) {
+      LineDrawer._positions[LineDrawer._positionCount++].copyFrom(from);
+      LineDrawer._positions[LineDrawer._positionCount++].copyFrom(to);
+    } else {
+      Vector3.transformCoordinate(from, LineDrawer.matrix, LineDrawer._positions[LineDrawer._positionCount++]);
+      Vector3.transformCoordinate(to, LineDrawer.matrix, LineDrawer._positions[LineDrawer._positionCount++]);
+    }
+    LineDrawer._colors[LineDrawer._positionCount - 2].copyFrom(fromColor);
+    LineDrawer._colors[LineDrawer._positionCount - 1].copyFrom(toColor);
+  }
+
+  /**
    * Draws a wireframe sphere with center and radius.
    * @param radius - sphere radius
    * @param center - sphere center
@@ -65,7 +90,7 @@ export class LineDrawer extends Script {
     const indexCount = WireframePrimitive.sphereIndexCount;
     const globalPosition = LineDrawer._positions;
 
-    LineDrawer._growthPosition(positionCount);
+    LineDrawer._growthPositionColor(positionCount);
     LineDrawer._growthIndexMemory(indexCount);
     WireframePrimitive.createSphereWireframe(
       radius,
@@ -98,7 +123,7 @@ export class LineDrawer extends Script {
     const indexCount = WireframePrimitive.cuboidIndexCount;
     const globalPosition = LineDrawer._positions;
 
-    LineDrawer._growthPosition(positionCount);
+    LineDrawer._growthPositionColor(positionCount);
     LineDrawer._growthIndexMemory(indexCount);
     WireframePrimitive.createCuboidWireframe(
       width,
@@ -132,7 +157,7 @@ export class LineDrawer extends Script {
     const indexCount = WireframePrimitive.capsuleIndexCount;
     const globalPosition = LineDrawer._positions;
 
-    LineDrawer._growthPosition(positionCount);
+    LineDrawer._growthPositionColor(positionCount);
     LineDrawer._growthIndexMemory(indexCount);
     WireframePrimitive.createCapsuleWireframe(
       radius,
@@ -166,7 +191,7 @@ export class LineDrawer extends Script {
     const indexCount = WireframePrimitive.circleIndexCount;
     const globalPosition = LineDrawer._positions;
 
-    LineDrawer._growthPosition(positionCount);
+    LineDrawer._growthPositionColor(positionCount);
     LineDrawer._growthIndexMemory(indexCount);
     WireframePrimitive.createCircleWireframe(
       radius,
@@ -200,7 +225,7 @@ export class LineDrawer extends Script {
   onAwake(): void {
     const engine = this.engine;
     const mesh = new ModelMesh(engine);
-    const material = new UnlitMaterial(engine);
+    const material = new PlainColorMaterial(engine);
     material.renderFace = RenderFace.Double;
     const renderer = this.entity.getComponent(MeshRenderer);
     renderer.castShadows = false;
@@ -255,12 +280,14 @@ export class LineDrawer extends Script {
     }
   }
 
-  private static _growthPosition(length: number): void {
-    const position = LineDrawer._positions;
+  private static _growthPositionColor(length: number): void {
+    const positions = LineDrawer._positions;
+    const colors = LineDrawer._colors;
     const neededLength = LineDrawer._positionCount + length;
-    if (neededLength > position.length) {
-      for (let i = 0, n = neededLength - position.length; i < n; i++) {
-        position.push(new Vector3());
+    if (neededLength > positions.length) {
+      for (let i = 0, n = neededLength - positions.length; i < n; i++) {
+        positions.push(new Vector3());
+        colors.push(new Color());
       }
     }
   }

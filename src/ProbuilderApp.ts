@@ -25,7 +25,7 @@ scene.ambientLight.diffuseIntensity = 1.2;
 // init camera
 const cameraEntity = rootEntity.createChild("camera");
 cameraEntity.addComponent(Camera);
-cameraEntity.transform.setPosition(1, 0, 1);
+cameraEntity.transform.setPosition(10, 0, 10);
 cameraEntity.transform.lookAt(new Vector3());
 
 // init point light
@@ -36,13 +36,10 @@ light.addComponent(PointLight);
 const lineDrawer = rootEntity.createChild();
 lineDrawer.addComponent(MeshRenderer);
 lineDrawer.addComponent(LineDrawer);
-const pointDrawer = rootEntity.createChild();
-pointDrawer.addComponent(MeshRenderer);
-pointDrawer.addComponent(PointDrawer);
 
 class DrawScript extends Script {
   onUpdate(deltaTime: number) {
-    PointDrawer.drawPoint(new Vector3(), new Color(1, 0, 0, 1));
+    LineDrawer.drawColorLine(new Vector3(1, 2, 0), new Vector3(-2, 1, 0), new Color(1, 0, 0), new Color(1, 0, 0));
 
     // LineDrawer.drawLine(new Vector3(0, 0, 0), new Vector3(1, 2, 0));
     // LineDrawer.drawLine(new Vector3(1, 2, 0), new Vector3(2, 1, 0));
