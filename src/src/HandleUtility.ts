@@ -229,17 +229,18 @@ export class HandleUtility {
   ): number {
     const positions = mesh.getPositions();
     let matches = 0;
-    const v = HandleUtility.tempVec1;
+    const wPos = HandleUtility.tempVec1;
+    const screenPos = HandleUtility.tempVec2;
     for (let index = 0, c = positions.length; index < c; index++) {
-      Vector3.transformCoordinate(positions[index], transform.worldMatrix, v);
-      cam.worldToScreenPoint(v, v);
-      mousePosition.z = v.z;
-      const dist = Vector3.distanceSquared(v, mousePosition) * distModifier;
+      Vector3.transformCoordinate(positions[index], transform.worldMatrix, wPos);
+      cam.worldToScreenPoint(wPos, screenPos);
+      mousePosition.z = screenPos.z;
+      const dist = Vector3.distanceSquared(screenPos, mousePosition) * distModifier;
 
       if (dist < maxDistance) {
         const entry = new VertexPickerEntry();
         entry.distance = dist;
-        entry.worldPosition.copyFrom(v);
+        entry.worldPosition.copyFrom(wPos);
         entry.vertex = index;
         list.push(entry);
         matches++;
@@ -251,7 +252,7 @@ export class HandleUtility {
 
   static vertexRaycast(cam: Camera, mesh: ModelMesh, transform: Transform, mousePosition: Vector3): VertexPickerEntry {
     const nearestVertices = HandleUtility.nearestVertices;
-    const maxDistance = 10;
+    const maxDistance = 100;
     nearestVertices.length = 0;
     HandleUtility.getNearestVertices(cam, mesh, transform, mousePosition, nearestVertices, maxDistance, 1);
 
@@ -270,7 +271,7 @@ export class HandleUtility {
     const up = cam.entity.transform.worldUp;
     const right = cam.entity.transform.worldRight;
     const wp1 = HandleUtility.tempVec1;
-    const scale = 0.5 * 0.5;
+    const scale = 0.5 * 0.2;
     wp1.set(pos.x + up.x * scale, pos.y + up.y * scale, pos.z + up.z * scale);
     const wp2 = HandleUtility.tempVec2;
     wp2.set(pos.x - up.x * scale, pos.y - up.y * scale, pos.z - up.z * scale);
