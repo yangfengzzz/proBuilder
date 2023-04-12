@@ -14,7 +14,6 @@ import {
   Ray,
   RenderFace,
   Script,
-  Transform,
   UnlitMaterial,
   Vector3,
   WebGLEngine,
@@ -69,6 +68,7 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
     direction = new Vector3();
     positions: Vector3[] = [];
     mesh: ModelMesh;
+    callback: (translation: Vector3) => void;
 
     get averageCenter(): Vector3 {
       this._averageCenter.set(0, 0, 0);
@@ -94,8 +94,7 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
 
     faceInfos: FaceInfo[] = [];
     positions: Vector3[] = [];
-    mesh: ModelMesh;
-    transform: Transform;
+    meshRenderer: MeshRenderer;
     ray = new Ray();
     mouse = new Vector3();
     hit = new SelectionResult();
@@ -112,15 +111,23 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
 
     onUpdate(deltaTime: number) {
       if (!this.hasCreateHandle) {
-        this.createSelectPlane(new Vector3(0, 0, 1), new Quaternion());
-        this.createSelectPlane(new Vector3(0, 0, -1), new Quaternion());
+        let faceInfo = this.createSelectPlane(new Vector3(0, 0, 1), new Quaternion(), new Vector3(0, 0, 1));
+        faceInfo.callback = (position: Vector3) => void {};
+        faceInfo = this.createSelectPlane(new Vector3(0, 0, -1), new Quaternion(), new Vector3(0, 0, -1));
+        faceInfo.callback = (position: Vector3) => void {};
+
         const rotation = new Quaternion();
         Quaternion.rotationY(MathUtil.degreeToRadian(90), rotation);
-        this.createSelectPlane(new Vector3(1, 0, 0), rotation);
-        this.createSelectPlane(new Vector3(-1, 0, 0), rotation);
+        faceInfo = this.createSelectPlane(new Vector3(1, 0, 0), rotation, new Vector3(1, 0, 0));
+        faceInfo.callback = (position: Vector3) => void {};
+        faceInfo = this.createSelectPlane(new Vector3(-1, 0, 0), rotation, new Vector3(-1, 0, 0));
+        faceInfo.callback = (position: Vector3) => void {};
+
         Quaternion.rotationX(MathUtil.degreeToRadian(90), rotation);
-        this.createSelectPlane(new Vector3(0, 1, 0), rotation);
-        this.createSelectPlane(new Vector3(0, -1, 0), rotation);
+        faceInfo = this.createSelectPlane(new Vector3(0, 1, 0), rotation, new Vector3(0, 1, 0));
+        faceInfo.callback = (position: Vector3) => void {};
+        faceInfo = this.createSelectPlane(new Vector3(0, -1, 0), rotation, new Vector3(0, -1, 0));
+        faceInfo.callback = (position: Vector3) => void {};
         this.hasCreateHandle = true;
       }
       this.faceRaycast();
@@ -139,6 +146,8 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
           const pointerPosition = this.pointer.position;
           this.camera.screenToWorldPoint(new Vector3(pointerPosition.x, pointerPosition.y, -viewPos.z), positionOffset);
           positionOffset.subtract(average);
+          const project = Vector3.dot(positionOffset, this.currentFace.direction);
+          Vector3.scale(this.currentFace.direction, project, positionOffset);
 
           for (let i = 0; i < this.currentFace.positions.length; i++) {
             const position = this.currentFace.positions[i];
@@ -147,6 +156,7 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
           // fresh
           this.currentFace.mesh.setPositions(this.currentFace.positions);
           this.currentFace.mesh.uploadData(false);
+          this.currentFace.callback(positionOffset);
         } else {
           this.control.enabled = true;
           this.currentFace = null;
@@ -163,10 +173,11 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
         return;
       }
       if (pointers && inputManager.isPointerDown(PointerButton.Primary)) {
+        const transform = this.meshRenderer.entity.transform;
         for (let i = pointers.length - 1; i >= 0; i--) {
           const pointer = pointers[i];
           this.camera.screenPointToRay(pointer.position, ray);
-          if (HandleUtility.faceSelect(ray, this.positions, this.transform, this.hit)) {
+          if (HandleUtility.faceSelect(ray, this.positions, transform, this.hit)) {
             this.pointer = pointer;
             this.control.enabled = false;
             for (let j = 0; j < this.faceInfos.length; j++) {
@@ -176,15 +187,15 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
               }
             }
 
-            HandleUtility.highlightFace(this.positions, this.transform, this.hit);
+            HandleUtility.highlightFace(this.positions, transform, this.hit);
           }
         }
       }
     }
 
-    createSelectPlane(translation: Vector3, rotation: Quaternion) {
+    createSelectPlane(translation: Vector3, rotation: Quaternion, direction: Vector3): FaceInfo {
       const scale: number = 0.1;
-      const child = this.transform.entity.createChild();
+      const child = this.meshRenderer.entity.createChild();
       const renderer = child.addComponent(MeshRenderer);
       const mtl = new UnlitMaterial(this.engine);
       mtl.renderFace = RenderFace.Double;
@@ -208,6 +219,7 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
       const faceEnd = this.positions.length / 3;
       const faceInfo = new FaceInfo(faceBegin, faceEnd);
       faceInfo.positions = positions;
+      faceInfo.direction = direction;
       this.faceInfos.push(faceInfo);
 
       mesh.setPositions(positions);
@@ -215,12 +227,12 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
       mesh.addSubMesh(0, 6, MeshTopology.Triangles);
       renderer.mesh = mesh;
       faceInfo.mesh = mesh;
+      return faceInfo;
     }
   }
 
   const selectScript = cameraEntity.addComponent(SelectScript);
-  selectScript.mesh = <ModelMesh>meshRenderer.mesh;
-  selectScript.transform = meshEntity.transform;
+  selectScript.meshRenderer = meshRenderer;
 
   engine.resourceManager
     .load<AmbientLight>({
