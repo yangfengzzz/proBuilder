@@ -17,13 +17,14 @@ import {
   Transform,
   UnlitMaterial,
   Vector3,
-  WebGLEngine
+  WebGLEngine,
+  PointerButton,
+  PointerPhase
 } from "oasis-engine";
 
 import { LineDrawer } from "./src";
 import { HandleUtility } from "./src/HandleUtility";
 import { SelectionResult } from "./src/SelectionResult";
-import { VertexPickerEntry } from "./src/VertexPickerEntry";
 import { LitePhysics } from "@oasis-engine/physics-lite";
 import { OrbitControl } from "@oasis-engine-toolkit/controls";
 
@@ -60,6 +61,30 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
   lineDrawer.addComponent(MeshRenderer);
   lineDrawer.addComponent(LineDrawer);
 
+  class FaceInfo {
+    private _averageCenter = new Vector3();
+
+    start = 0;
+    end = 0;
+    direction = new Vector3();
+    positions: Vector3[] = [];
+    mesh: ModelMesh;
+
+    get averageCenter(): Vector3 {
+      this._averageCenter.set(0, 0, 0);
+      for (let i = 0; i < this.positions.length; i++) {
+        this._averageCenter.add(this.positions[i]);
+      }
+      this._averageCenter.scale(1 / this.positions.length);
+      return this._averageCenter;
+    }
+
+    constructor(start: number, end: number) {
+      this.start = start;
+      this.end = end;
+    }
+  }
+
   class SelectScript extends Script {
     private startPointerPos = new Vector3();
     private tempVec3: Vector3 = new Vector3();
@@ -67,6 +92,7 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
 
     hasCreateHandle = false;
 
+    faceInfos: FaceInfo[] = [];
     positions: Vector3[] = [];
     mesh: ModelMesh;
     transform: Transform;
@@ -77,7 +103,7 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
     control: OrbitControl;
 
     pointer: Pointer;
-    entry: VertexPickerEntry;
+    currentFace: FaceInfo;
 
     onAwake() {
       this.camera = this.entity.getComponent(Camera);
@@ -98,6 +124,35 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
         this.hasCreateHandle = true;
       }
       this.faceRaycast();
+
+      if (this.pointer) {
+        if (
+          this.pointer.phase == PointerPhase.Down ||
+          this.pointer.phase == PointerPhase.Move ||
+          this.pointer.phase == PointerPhase.Stationary
+        ) {
+          const viewPos = new Vector3();
+          const average = this.currentFace.averageCenter;
+          Vector3.transformCoordinate(average, this.camera.viewMatrix, viewPos);
+
+          const positionOffset = new Vector3();
+          const pointerPosition = this.pointer.position;
+          this.camera.screenToWorldPoint(new Vector3(pointerPosition.x, pointerPosition.y, -viewPos.z), positionOffset);
+          positionOffset.subtract(average);
+
+          for (let i = 0; i < this.currentFace.positions.length; i++) {
+            const position = this.currentFace.positions[i];
+            position.add(positionOffset);
+          }
+          // fresh
+          this.currentFace.mesh.setPositions(this.currentFace.positions);
+          this.currentFace.mesh.uploadData(false);
+        } else {
+          this.control.enabled = true;
+          this.currentFace = null;
+          this.pointer = null;
+        }
+      }
     }
 
     faceRaycast() {
@@ -107,11 +162,22 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
       if (!pointers) {
         return;
       }
-      for (let i = pointers.length - 1; i >= 0; i--) {
-        const pointer = pointers[i];
-        this.camera.screenPointToRay(pointer.position, ray);
-        if (HandleUtility.faceSelect(ray, this.positions, this.transform, this.hit)) {
-          HandleUtility.highlightFace(this.positions, this.transform, this.hit);
+      if (pointers && inputManager.isPointerDown(PointerButton.Primary)) {
+        for (let i = pointers.length - 1; i >= 0; i--) {
+          const pointer = pointers[i];
+          this.camera.screenPointToRay(pointer.position, ray);
+          if (HandleUtility.faceSelect(ray, this.positions, this.transform, this.hit)) {
+            this.pointer = pointer;
+            this.control.enabled = false;
+            for (let j = 0; j < this.faceInfos.length; j++) {
+              const faceInfo = this.faceInfos[j];
+              if (faceInfo.start <= this.hit.face && this.hit.face < faceInfo.end) {
+                this.currentFace = this.faceInfos[j];
+              }
+            }
+
+            HandleUtility.highlightFace(this.positions, this.transform, this.hit);
+          }
         }
       }
     }
@@ -132,17 +198,23 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
         new Vector3(-scale, scale, 0),
         new Vector3(scale, scale, 0)
       ];
+      const faceBegin = this.positions.length / 3;
       for (let i = 0; i < positions.length; i++) {
         const position = positions[i];
         Vector3.transformByQuat(position, rotation, position);
         position.add(translation);
         this.positions.push(position);
       }
+      const faceEnd = this.positions.length / 3;
+      const faceInfo = new FaceInfo(faceBegin, faceEnd);
+      faceInfo.positions = positions;
+      this.faceInfos.push(faceInfo);
 
       mesh.setPositions(positions);
       mesh.uploadData(true);
       mesh.addSubMesh(0, 6, MeshTopology.Triangles);
       renderer.mesh = mesh;
+      faceInfo.mesh = mesh;
     }
   }
 

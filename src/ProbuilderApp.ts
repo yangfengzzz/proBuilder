@@ -80,8 +80,6 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
     }
 
     onUpdate(deltaTime: number) {
-      // this.faceRaycast();
-
       this.vertexRaycast();
       if (this.pointer) {
         const entry = this.entry;
@@ -131,22 +129,6 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
             this.pointer = pointer;
             this.control.enabled = false;
           }
-        }
-      }
-    }
-
-    faceRaycast() {
-      const { engine, ray } = this;
-      const { inputManager } = engine;
-      const { pointers } = inputManager;
-      if (!pointers) {
-        return;
-      }
-      for (let i = pointers.length - 1; i >= 0; i--) {
-        const pointer = pointers[i];
-        this.camera.screenPointToRay(pointer.position, ray);
-        if (HandleUtility.faceRaycast(ray, this.mesh, this.transform, this.hit)) {
-          HandleUtility.highlightFace(this.mesh, this.transform, this.hit);
         }
       }
     }
