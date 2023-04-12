@@ -104,6 +104,10 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
     pointer: Pointer;
     currentFace: FaceInfo;
 
+    width = 1;
+    height = 1;
+    depth = 1;
+
     onAwake() {
       this.camera = this.entity.getComponent(Camera);
       this.control = this.entity.getComponent(OrbitControl);
@@ -112,22 +116,25 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
     onUpdate(deltaTime: number) {
       if (!this.hasCreateHandle) {
         let faceInfo = this.createSelectPlane(new Vector3(0, 0, 1), new Quaternion(), new Vector3(0, 0, 1));
-        faceInfo.callback = (position: Vector3) => void {};
-        faceInfo = this.createSelectPlane(new Vector3(0, 0, -1), new Quaternion(), new Vector3(0, 0, -1));
-        faceInfo.callback = (position: Vector3) => void {};
+        faceInfo.callback = (position: Vector3) => {
+          this.depth += position.z;
+          this.meshRenderer.mesh = PrimitiveMesh.createCuboid(this.engine, this.width, this.height, this.depth);
+        };
 
         const rotation = new Quaternion();
         Quaternion.rotationY(MathUtil.degreeToRadian(90), rotation);
         faceInfo = this.createSelectPlane(new Vector3(1, 0, 0), rotation, new Vector3(1, 0, 0));
-        faceInfo.callback = (position: Vector3) => void {};
-        faceInfo = this.createSelectPlane(new Vector3(-1, 0, 0), rotation, new Vector3(-1, 0, 0));
-        faceInfo.callback = (position: Vector3) => void {};
+        faceInfo.callback = (position: Vector3) => {
+          this.width += position.x;
+          this.meshRenderer.mesh = PrimitiveMesh.createCuboid(this.engine, this.width, this.height, this.depth);
+        };
 
         Quaternion.rotationX(MathUtil.degreeToRadian(90), rotation);
         faceInfo = this.createSelectPlane(new Vector3(0, 1, 0), rotation, new Vector3(0, 1, 0));
-        faceInfo.callback = (position: Vector3) => void {};
-        faceInfo = this.createSelectPlane(new Vector3(0, -1, 0), rotation, new Vector3(0, -1, 0));
-        faceInfo.callback = (position: Vector3) => void {};
+        faceInfo.callback = (position: Vector3) => {
+          this.height += position.y;
+          this.meshRenderer.mesh = PrimitiveMesh.createCuboid(this.engine, this.width, this.height, this.depth);
+        };
         this.hasCreateHandle = true;
       }
       this.faceRaycast();
