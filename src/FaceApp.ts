@@ -2,18 +2,20 @@ import {
   AmbientLight,
   AssetType,
   Camera,
+  MathUtil,
   MeshRenderer,
+  MeshTopology,
   ModelMesh,
   PBRMaterial,
   Pointer,
-  PointerButton,
-  PointerPhase,
   PointLight,
   PrimitiveMesh,
+  Quaternion,
   Ray,
   RenderFace,
   Script,
   Transform,
+  UnlitMaterial,
   Vector3,
   WebGLEngine
 } from "oasis-engine";
@@ -49,8 +51,8 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
   const meshRenderer = meshEntity.addComponent(MeshRenderer);
   meshRenderer.mesh = PrimitiveMesh.createCuboid(engine, 1, 1, 1, false);
   const mtl = new PBRMaterial(engine);
-  // mtl.baseColor.set(1, 1, 1, 0.5);
-  // mtl.isTransparent = true;
+  mtl.baseColor.set(1, 1, 1, 0.5);
+  mtl.isTransparent = true;
   mtl.renderFace = RenderFace.Double;
   meshRenderer.setMaterial(mtl);
 
@@ -63,6 +65,9 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
     private tempVec3: Vector3 = new Vector3();
     private zValue: number = 0;
 
+    hasCreateHandle = false;
+
+    positions: Vector3[] = [];
     mesh: ModelMesh;
     transform: Transform;
     ray = new Ray();
@@ -80,6 +85,18 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
     }
 
     onUpdate(deltaTime: number) {
+      if (!this.hasCreateHandle) {
+        this.createSelectPlane(new Vector3(0, 0, 1), new Quaternion());
+        this.createSelectPlane(new Vector3(0, 0, -1), new Quaternion());
+        const rotation = new Quaternion();
+        Quaternion.rotationY(MathUtil.degreeToRadian(90), rotation);
+        this.createSelectPlane(new Vector3(1, 0, 0), rotation);
+        this.createSelectPlane(new Vector3(-1, 0, 0), rotation);
+        Quaternion.rotationX(MathUtil.degreeToRadian(90), rotation);
+        this.createSelectPlane(new Vector3(0, 1, 0), rotation);
+        this.createSelectPlane(new Vector3(0, -1, 0), rotation);
+        this.hasCreateHandle = true;
+      }
       this.faceRaycast();
     }
 
@@ -93,10 +110,39 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
       for (let i = pointers.length - 1; i >= 0; i--) {
         const pointer = pointers[i];
         this.camera.screenPointToRay(pointer.position, ray);
-        if (HandleUtility.faceRaycast(ray, this.mesh, this.transform, this.hit)) {
-          HandleUtility.highlightFace(this.mesh, this.transform, this.hit);
+        if (HandleUtility.faceSelect(ray, this.positions, this.transform, this.hit)) {
+          HandleUtility.highlightFace(this.positions, this.transform, this.hit);
         }
       }
+    }
+
+    createSelectPlane(translation: Vector3, rotation: Quaternion) {
+      const scale: number = 0.1;
+      const child = this.transform.entity.createChild();
+      const renderer = child.addComponent(MeshRenderer);
+      const mtl = new UnlitMaterial(this.engine);
+      mtl.renderFace = RenderFace.Double;
+      renderer.setMaterial(mtl);
+      const mesh = new ModelMesh(this.engine);
+      const positions = [
+        new Vector3(-scale, -scale, 0),
+        new Vector3(-scale, scale, 0),
+        new Vector3(scale, -scale, 0),
+        new Vector3(scale, -scale, 0),
+        new Vector3(-scale, scale, 0),
+        new Vector3(scale, scale, 0)
+      ];
+      for (let i = 0; i < positions.length; i++) {
+        const position = positions[i];
+        Vector3.transformByQuat(position, rotation, position);
+        position.add(translation);
+        this.positions.push(position);
+      }
+
+      mesh.setPositions(positions);
+      mesh.uploadData(true);
+      mesh.addSubMesh(0, 6, MeshTopology.Triangles);
+      renderer.mesh = mesh;
     }
   }
 

@@ -26,6 +26,76 @@ export class HandleUtility {
    * Find the nearest face intersected by InWorldRay on this pb_Object.
    * True if the ray intersects with the mesh, false if not.
    * @param worldRay A ray in world space.
+   * @param positions The ProBuilder object to raycast against.
+   * @param transform
+   * @param hit If the mesh was intersected, hit contains information about the intersect point in local coordinate space.
+   * @param distance The distance from the ray origin to the intersection point.
+   * @param cullingMode Which sides of a face are culled when hit testing. Default is back faces are culled.
+   */
+  static faceSelect(
+    worldRay: Ray,
+    positions: Vector3[],
+    transform: Transform,
+    hit: SelectionResult,
+    distance: number = Number.MAX_VALUE,
+    cullingMode: CullingMode = CullingMode.None
+  ): boolean {
+    // Transform ray into model space
+    Vector3.subtract(worldRay.origin, transform.worldPosition, worldRay.origin);
+    Matrix.invert(transform.worldMatrix, HandleUtility.invMat);
+    Vector3.transformCoordinate(worldRay.origin, HandleUtility.invMat, worldRay.origin);
+    Vector3.transformCoordinate(worldRay.direction, HandleUtility.invMat, worldRay.direction);
+
+    let OutHitPoint = Number.POSITIVE_INFINITY;
+    let OutHitFace = -1;
+    let OutNrm = new Vector3();
+
+    // Iterate faces, testing for nearest hit to ray origin. Optionally ignores backfaces.
+    for (let j = 0, ic = positions.length; j < ic; j += 3) {
+      let a = positions[j];
+      let b = positions[j + 1];
+      let c = positions[j + 2];
+      Vector3.subtract(b, a, HandleUtility.tempVec1);
+      Vector3.subtract(c, a, HandleUtility.tempVec2);
+
+      let nrm = new Vector3();
+      Vector3.cross(HandleUtility.tempVec1, HandleUtility.tempVec2, nrm);
+      let dot = Vector3.dot(worldRay.direction, nrm);
+
+      let skip = false;
+      switch (cullingMode) {
+        case CullingMode.Front:
+          if (dot < 0) skip = true;
+          break;
+
+        case CullingMode.Back:
+          if (dot > 0) skip = true;
+          break;
+      }
+
+      let dist: number = 0;
+
+      let point = new Vector3();
+      if (!skip && HandleUtility.rayIntersectsTriangle(worldRay, a, b, c, point) > -1) {
+        if (dist > OutHitPoint || dist > distance) continue;
+
+        OutNrm = nrm;
+        OutHitFace = j / 3;
+        OutHitPoint = dist;
+      }
+    }
+
+    hit.distance = OutHitPoint;
+    hit.face = OutHitFace;
+    hit.normal.copyFrom(OutNrm);
+    worldRay.getPoint(OutHitPoint, hit.point);
+    return OutHitFace > -1;
+  }
+
+  /**
+   * Find the nearest face intersected by InWorldRay on this pb_Object.
+   * True if the ray intersects with the mesh, false if not.
+   * @param worldRay A ray in world space.
    * @param mesh The ProBuilder object to raycast against.
    * @param transform
    * @param hit If the mesh was intersected, hit contains information about the intersect point in local coordinate space.
@@ -172,14 +242,12 @@ export class HandleUtility {
     return -1;
   }
 
-  static highlightFace(mesh: ModelMesh, transform: Transform, hit: SelectionResult) {
+  static highlightFace(positions: Vector3[], transform: Transform, hit: SelectionResult) {
     const face = hit.face;
-    const positions = mesh.getPositions();
-    const indices = mesh.getIndices();
 
-    const p1 = positions[indices[face * 3]];
-    const p2 = positions[indices[face * 3 + 1]];
-    const p3 = positions[indices[face * 3 + 2]];
+    const p1 = positions[face * 3];
+    const p2 = positions[face * 3 + 1];
+    const p3 = positions[face * 3 + 2];
 
     const wp1 = HandleUtility.tempVec1;
     Vector3.transformCoordinate(p1, transform.worldMatrix, wp1);
