@@ -1,1 +1,1 @@
-import "./src/ProbuilderApp";
+import "./src/FaceApp";

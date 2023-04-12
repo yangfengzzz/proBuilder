@@ -18,7 +18,7 @@ import {
  * Point Drawer.
  * @decorator `@dependentComponents(MeshRenderer)`
  */
-@dependentComponents(DependentMode.CheckOnly, MeshRenderer)
+@dependentComponents(MeshRenderer, DependentMode.CheckOnly)
 export class PointDrawer extends Script {
   private static _positions: Vector3[] = [];
   private static _colors: Color[] = [];
