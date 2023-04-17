@@ -1,4 +1,4 @@
-import { Matrix, Quaternion, Script, Transform, Vector3 } from "oasis-engine";
+import { MathUtil, Matrix, Quaternion, Script, Transform, Vector3 } from "oasis-engine";
 import { DynamicBoneColliderBase } from "./DynamicBoneColliderBase";
 
 export enum UpdateMode {
@@ -232,7 +232,38 @@ export class DynamicBone extends Script {
     }
   }
 
-  setupParticles(): void {}
+  setupParticles(): void {
+    this._particleTrees.length = 0;
+
+    if (this.root != null) {
+      this.appendParticleTree(this.root);
+    }
+
+    if (this.roots.length != 0) {
+      for (let i = 0; i < this.roots.length; i++) {
+        let root = this.roots[i];
+        let result = this._particleTrees.find((value, index, obj) => {
+          return value._root === root;
+        });
+
+        if (result !== undefined) {
+          continue;
+        }
+        this.appendParticleTree(root);
+      }
+    }
+
+    let transform = this.entity.transform!;
+    this._objectScale = Math.abs(transform.lossyWorldScale.x);
+    this._objectPrevPosition.copyFrom(transform.worldPosition);
+    this._objectMove.set(0, 0, 0);
+
+    for (let i = 0; i < this._particleTrees.length; i++) {
+      let pt = this._particleTrees[i];
+      this.appendParticles(pt, pt._root, -1, 0);
+    }
+    this.updateParameters();
+  }
 
   updateParameters(): void {
     this.setWeight(this.blendWeight);
@@ -242,7 +273,26 @@ export class DynamicBone extends Script {
     }
   }
 
-  updateSingleParameters(pt: ParticleTree): void {}
+  updateSingleParameters(pt: ParticleTree): void {
+    Vector3.transformToVec3(this.gravity, pt._rootWorldToLocalMatrix, pt._localGravity);
+
+    for (let i = 0; i < pt._particles.length; i++) {
+      let p = pt._particles[i];
+      p._damping = this.damping;
+      p._elasticity = this.elasticity;
+      p._stiffness = this.stiffness;
+      p._inert = this.inert;
+      p._friction = this.friction;
+      p._radius = this.radius;
+
+      p._damping = MathUtil.clamp(p._damping, 0, 1);
+      p._elasticity = MathUtil.clamp(p._elasticity, 0, 1);
+      p._stiffness = MathUtil.clamp(p._stiffness, 0, 1);
+      p._inert = MathUtil.clamp(p._inert, 0, 1);
+      p._friction = MathUtil.clamp(p._friction, 0, 1);
+      p._radius = Math.max(p._radius, 0);
+    }
+  }
 
   appendParticleTree(root: Transform): void {
     let pt = new ParticleTree();
