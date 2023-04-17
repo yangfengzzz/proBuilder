@@ -16,6 +16,8 @@ import {
 import { LitePhysics } from "@oasis-engine/physics-lite";
 import { OrbitControl } from "@oasis-engine-toolkit/controls";
 import { DynamicBone } from "./db/DynamicBone";
+import { DynamicBoneCollider } from "./db/DynamicBoneCollider";
+import { LineDrawer } from "./src";
 
 class MoveScript extends Script {
   private _rTri: number = 0;
@@ -37,10 +39,37 @@ function createEntity(entity: Entity, offset: Vector3, color: Color = new Color(
   return cubeEntity;
 }
 
+class ColliderDebugger extends Script {
+  private _dynamicBone: DynamicBone;
+  collider: DynamicBoneCollider;
+
+  override onAwake() {
+    let colliderEntity = this.entity.createChild();
+    colliderEntity.transform.position = new Vector3(3, -2, 0);
+    this.collider = colliderEntity.addComponent(DynamicBoneCollider);
+  }
+
+  get dynamicBone(): DynamicBone {
+    return this._dynamicBone;
+  }
+
+  set dynamicBone(value: DynamicBone) {
+    this._dynamicBone = value;
+    this._dynamicBone.colliders.push(this.collider);
+  }
+
+  override onUpdate(deltaTime: number) {
+    LineDrawer.drawSphere(this.collider.radius, this.collider.entity.transform.worldPosition);
+  }
+}
+
 WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engine) => {
   engine.canvas.resizeByClientSize();
   const scene = engine.sceneManager.activeScene;
   const rootEntity = scene.createRootEntity("root");
+  rootEntity.addComponent(MeshRenderer);
+  rootEntity.addComponent(LineDrawer);
+  const collider = rootEntity.addComponent(ColliderDebugger);
 
   scene.ambientLight.diffuseSolidColor.set(1, 1, 1, 1);
   scene.ambientLight.diffuseIntensity = 1.2;
@@ -48,9 +77,10 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
   // init camera
   const cameraEntity = rootEntity.createChild("camera");
   cameraEntity.addComponent(Camera);
-  cameraEntity.transform.setPosition(2, 2, 2);
+  cameraEntity.transform.setPosition(10, 10, 10);
   cameraEntity.transform.lookAt(new Vector3());
-  cameraEntity.addComponent(OrbitControl);
+  const control = cameraEntity.addComponent(OrbitControl);
+  control.target.set(4, -4, 0);
 
   // init point light
   const light = rootEntity.createChild("light");
@@ -64,6 +94,7 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
 
   entity = createEntity(entity, new Vector3(1, -1, 0));
   dynamicBone.root = entity.transform;
+  collider.dynamicBone = dynamicBone;
 
   entity = createEntity(entity, new Vector3(1, -1, 0));
   entity = createEntity(entity, new Vector3(1, -1, 0));
