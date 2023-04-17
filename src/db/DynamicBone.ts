@@ -17,6 +17,8 @@ export enum FreezeAxis {
 
 export class DynamicBone extends Script {
   private static _tempVec1 = new Vector3();
+  private static _tempVec2 = new Vector3();
+  private static _tempVec3 = new Vector3();
 
   private static _updateCount: number = 0;
   private static _prepareFrame: number = 0;
@@ -417,7 +419,16 @@ export class DynamicBone extends Script {
     }
   }
 
-  initSingleTransforms(pt: ParticleTree): void {}
+  initSingleTransforms(pt: ParticleTree): void {
+    for (let i = 0; i < pt._particles.length; i++) {
+      let p = pt._particles[i];
+      let transform = p._transform;
+      if (transform != null) {
+        transform.position.copyFrom(p._initLocalPosition);
+        transform.rotationQuaternion.copyFrom(p._initLocalRotation);
+      }
+    }
+  }
 
   resetParticlesPosition(): void {
     for (let i = 0; i < this._particleTrees.length; i++) {
@@ -426,7 +437,24 @@ export class DynamicBone extends Script {
     this._objectPrevPosition.copyFrom(this.entity.transform.worldPosition);
   }
 
-  resetSingleParticlesPosition(pt: ParticleTree): void {}
+  resetSingleParticlesPosition(pt: ParticleTree): void {
+    for (let i = 0; i < pt._particles.length; i++) {
+      let p = pt._particles[i];
+      let transform = p._transform;
+      if (transform != null) {
+        p._position.copyFrom(transform.worldPosition);
+        p._prevPosition.copyFrom(transform.worldPosition);
+      } // end bone
+      else {
+        let pb = pt._particles[p._parentIndex]._transform;
+        let newPosition = DynamicBone._tempVec1;
+        Vector3.transformCoordinate(p._endOffset, pb!.worldMatrix, newPosition);
+        p._position.copyFrom(newPosition);
+        p._prevPosition.copyFrom(newPosition);
+      }
+      p._isCollide = false;
+    }
+  }
 
   updateParticles1(timeVar: number, loopIndex: number): void {
     for (let i = 0; i < this._particleTrees.length; i++) {
@@ -434,7 +462,54 @@ export class DynamicBone extends Script {
     }
   }
 
-  updateSingleParticles1(pt: ParticleTree, timeVar: number, loopIndex: number): void {}
+  updateSingleParticles1(pt: ParticleTree, timeVar: number, loopIndex: number): void {
+    const force = DynamicBone._tempVec1;
+    force.copyFrom(this.gravity);
+    const fdir = DynamicBone._tempVec2;
+    Vector3.normalize(this.gravity, fdir);
+    // project current gravity to rest gravity
+    const scale = Math.max(Vector3.dot(pt._restGravity, fdir), 0);
+    const pf = DynamicBone._tempVec2;
+    Vector3.scale(fdir, scale, pf);
+    force.subtract(pf); // remove projected gravity
+    force.add(this.force);
+    force.scale(this._objectScale * timeVar);
+
+    // only first loop consider object move
+    const objectMove = DynamicBone._tempVec3;
+    if (loopIndex == 0) {
+      objectMove.copyFrom(this._objectMove);
+    } else {
+      objectMove.set(0, 0, 0);
+    }
+
+    for (let i = 0; i < pt._particles.length; i++) {
+      const p = pt._particles[i];
+      if (p._parentIndex >= 0) {
+        // verlet integration
+        const v = DynamicBone._tempVec2;
+        Vector3.subtract(p._position, p._prevPosition, v);
+        objectMove.scale(p._inert);
+        const rmove = objectMove;
+        Vector3.add(p._position, rmove, p._prevPosition);
+        let damping = p._damping;
+        if (p._isCollide) {
+          damping += p._friction;
+          if (damping > 1) {
+            damping = 1;
+          }
+          p._isCollide = false;
+        }
+        v.scale(1 - damping);
+        p._position.add(v);
+        p._position.add(force);
+        p._position.add(rmove);
+      } else {
+        p._prevPosition.copyFrom(p._position);
+        p._position.copyFrom(p._transformPosition);
+      }
+    }
+  }
 
   updateParticles2(timeVar: number): void {
     for (let i = 0; i < this._particleTrees.length; i++) {
