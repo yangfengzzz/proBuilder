@@ -20,12 +20,15 @@ export class DynamicBone extends Script {
   private static _tempVec1 = new Vector3();
   private static _tempVec2 = new Vector3();
   private static _tempVec3 = new Vector3();
+  private static _tempQuat = new Quaternion();
+  private static _tempMatrix = new Matrix();
+  private static _tempPlane = new Plane();
 
   private static _updateCount: number = 0;
   private static _prepareFrame: number = 0;
 
   /// The roots of the transform hierarchy to apply physics.
-  public root: Transform;
+  public root: Transform = null;
   public roots: Transform[] = [];
 
   /// Internal physics simulation rate.
@@ -77,7 +80,7 @@ export class DynamicBone extends Script {
 
   /// Disable physics simulation automatically if character is far from camera or player.
   public distantDisable = false;
-  public referenceObject: Transform;
+  public referenceObject: Transform = null;
   public distanceToObject: number = 20;
 
   private _objectMove = new Vector3();
@@ -95,31 +98,65 @@ export class DynamicBone extends Script {
   private _deltaTime: number = 0;
   private _effectiveColliders: DynamicBoneColliderBase[] = [];
 
-  override onStart(): void {
-    this.setupParticles();
-  }
-
-  override onEnable(): void {
-    this.resetParticlesPosition();
-  }
-
-  override onDisable(): void {
-    this.initTransforms();
-  }
-
-  override onPhysicsUpdate(): void {
-    if (this.updateMode == UpdateMode.AnimatePhysics) {
-      this.preUpdate();
+  public setWeight(w: number): void {
+    if (this._weight != w) {
+      if (w == 0) {
+        this._initTransforms();
+      } else if (this._weight == 0) {
+        this._resetParticlesPosition();
+      }
+      this._weight = w;
+      this.blendWeight = w;
     }
   }
 
+  public getWeight(): number {
+    return this._weight;
+  }
+
+  /**
+   * @internal
+   */
+  override onStart(): void {
+    this._setupParticles();
+  }
+
+  /**
+   * @internal
+   */
+  override onEnable(): void {
+    this._resetParticlesPosition();
+  }
+
+  /**
+   * @internal
+   */
+  override onDisable(): void {
+    this._initTransforms();
+  }
+
+  /**
+   * @internal
+   */
+  override onPhysicsUpdate(): void {
+    if (this.updateMode == UpdateMode.AnimatePhysics) {
+      this._preUpdate();
+    }
+  }
+
+  /**
+   * @internal
+   */
   override onUpdate(deltaTime: number): void {
     if (this.updateMode != UpdateMode.AnimatePhysics) {
-      this.preUpdate();
+      this._preUpdate();
     }
     DynamicBone._updateCount += 1;
   }
 
+  /**
+   * @internal
+   */
   override onLateUpdate(deltaTime: number): void {
     if (this._preUpdateCount == 0) {
       return;
@@ -132,32 +169,16 @@ export class DynamicBone extends Script {
 
     this.setWeight(this.blendWeight);
 
-    this.checkDistance();
-    if (this.isNeedUpdate()) {
-      this.prepare();
-      this.updateParticles();
-      this.applyParticlesToTransforms();
+    this._checkDistance();
+    if (this._isNeedUpdate()) {
+      this._prepare();
+      this._updateParticles();
+      this._applyParticlesToTransforms();
     }
     this._preUpdateCount = 0;
   }
 
-  public setWeight(w: number): void {
-    if (this._weight != w) {
-      if (w == 0) {
-        this.initTransforms();
-      } else if (this._weight == 0) {
-        this.resetParticlesPosition();
-      }
-      this._weight = w;
-      this.blendWeight = w;
-    }
-  }
-
-  public getWeight(): number {
-    return this._weight;
-  }
-
-  prepare(): void {
+  private _prepare(): void {
     this._deltaTime = this.engine.time.deltaTime;
 
     const transform = this.entity.transform!;
@@ -197,7 +218,7 @@ export class DynamicBone extends Script {
     }
   }
 
-  updateParticles(): void {
+  private _updateParticles(): void {
     if (this._particleTrees.length <= 0) {
       return;
     }
@@ -229,19 +250,19 @@ export class DynamicBone extends Script {
 
     if (loop > 0) {
       for (let i = 0; i < loop; i++) {
-        this.updateParticles1(timeVar, i);
-        this.updateParticles2(timeVar);
+        this._updateParticles1(timeVar, i);
+        this._updateParticles2(timeVar);
       }
     } else {
-      this.skipUpdateParticles();
+      this._skipUpdateParticles();
     }
   }
 
-  setupParticles(): void {
+  private _setupParticles(): void {
     this._particleTrees.length = 0;
 
     if (this.root != null) {
-      this.appendParticleTree(this.root);
+      this._appendParticleTree(this.root);
     }
 
     if (this.roots.length != 0) {
@@ -254,7 +275,7 @@ export class DynamicBone extends Script {
         if (result !== undefined) {
           continue;
         }
-        this.appendParticleTree(root);
+        this._appendParticleTree(root);
       }
     }
 
@@ -265,20 +286,20 @@ export class DynamicBone extends Script {
 
     for (let i = 0; i < this._particleTrees.length; i++) {
       const pt = this._particleTrees[i];
-      this.appendParticles(pt, pt._root, -1, 0);
+      this._appendParticles(pt, pt._root, -1, 0);
     }
-    this.updateParameters();
+    this._updateParameters();
   }
 
-  updateParameters(): void {
+  private _updateParameters(): void {
     this.setWeight(this.blendWeight);
 
     for (let i = 0; i < this._particleTrees.length; i++) {
-      this.updateSingleParameters(this._particleTrees[i]);
+      this._updateSingleParameters(this._particleTrees[i]);
     }
   }
 
-  updateSingleParameters(pt: ParticleTree): void {
+  private _updateSingleParameters(pt: ParticleTree): void {
     Vector3.transformToVec3(this.gravity, pt._rootWorldToLocalMatrix, pt._localGravity);
 
     for (let i = 0; i < pt._particles.length; i++) {
@@ -299,14 +320,14 @@ export class DynamicBone extends Script {
     }
   }
 
-  appendParticleTree(root: Transform): void {
+  private _appendParticleTree(root: Transform): void {
     const pt = new ParticleTree();
     pt._root = root;
     Matrix.invert(root.worldMatrix, pt._rootWorldToLocalMatrix);
     this._particleTrees.push(pt);
   }
 
-  appendParticles(pt: ParticleTree, b: Transform, parentIndex: number, boneLength: number): void {
+  private _appendParticles(pt: ParticleTree, b: Transform, parentIndex: number, boneLength: number): void {
     const p = new Particle();
     p._transform = b;
     p._parentIndex = parentIndex;
@@ -369,9 +390,9 @@ export class DynamicBone extends Script {
 
         DynamicBone._tempVec1.set(0, 0, 0);
         if (!exclude) {
-          this.appendParticles(pt, child.transform, index, boneLength);
+          this._appendParticles(pt, child.transform, index, boneLength);
         } else if (this.endLength > 0 || !Vector3.equals(this.endOffset, DynamicBone._tempVec1)) {
-          this.appendParticles(pt, null, index, boneLength);
+          this._appendParticles(pt, null, index, boneLength);
         }
       }
 
@@ -379,23 +400,23 @@ export class DynamicBone extends Script {
         b.entity.children.length == 0 &&
         (this.endLength > 0 || !Vector3.equals(this.endOffset, DynamicBone._tempVec1))
       ) {
-        this.appendParticles(pt, null, index, boneLength);
+        this._appendParticles(pt, null, index, boneLength);
       }
     }
   }
 
-  isNeedUpdate(): boolean {
+  private _isNeedUpdate(): boolean {
     return this._weight > 0 && !(this.distantDisable && this._distantDisabled);
   }
 
-  preUpdate(): void {
-    if (this.isNeedUpdate()) {
-      this.initTransforms();
+  private _preUpdate(): void {
+    if (this._isNeedUpdate()) {
+      this._initTransforms();
     }
     this._preUpdateCount += 1;
   }
 
-  checkDistance(): void {
+  private _checkDistance(): void {
     if (!this.distantDisable) {
       return;
     }
@@ -407,20 +428,20 @@ export class DynamicBone extends Script {
       const disable = d2 > this.distanceToObject * this.distanceToObject;
       if (disable != this._distantDisabled) {
         if (!disable) {
-          this.resetParticlesPosition();
+          this._resetParticlesPosition();
         }
         this._distantDisabled = disable;
       }
     }
   }
 
-  initTransforms(): void {
+  private _initTransforms(): void {
     for (let i = 0; i < this._particleTrees.length; i++) {
-      this.initSingleTransforms(this._particleTrees[i]);
+      this._initSingleTransforms(this._particleTrees[i]);
     }
   }
 
-  initSingleTransforms(pt: ParticleTree): void {
+  private _initSingleTransforms(pt: ParticleTree): void {
     for (let i = 0; i < pt._particles.length; i++) {
       let p = pt._particles[i];
       let transform = p._transform;
@@ -431,14 +452,14 @@ export class DynamicBone extends Script {
     }
   }
 
-  resetParticlesPosition(): void {
+  private _resetParticlesPosition(): void {
     for (let i = 0; i < this._particleTrees.length; i++) {
-      this.resetSingleParticlesPosition(this._particleTrees[i]);
+      this._resetSingleParticlesPosition(this._particleTrees[i]);
     }
     this._objectPrevPosition.copyFrom(this.entity.transform.worldPosition);
   }
 
-  resetSingleParticlesPosition(pt: ParticleTree): void {
+  private _resetSingleParticlesPosition(pt: ParticleTree): void {
     for (let i = 0; i < pt._particles.length; i++) {
       let p = pt._particles[i];
       let transform = p._transform;
@@ -457,13 +478,13 @@ export class DynamicBone extends Script {
     }
   }
 
-  updateParticles1(timeVar: number, loopIndex: number): void {
+  private _updateParticles1(timeVar: number, loopIndex: number): void {
     for (let i = 0; i < this._particleTrees.length; i++) {
-      this.updateSingleParticles1(this._particleTrees[i], timeVar, loopIndex);
+      this._updateSingleParticles1(this._particleTrees[i], timeVar, loopIndex);
     }
   }
 
-  updateSingleParticles1(pt: ParticleTree, timeVar: number, loopIndex: number): void {
+  private _updateSingleParticles1(pt: ParticleTree, timeVar: number, loopIndex: number): void {
     const force = DynamicBone._tempVec1;
     force.copyFrom(this.gravity);
     const fdir = DynamicBone._tempVec2;
@@ -512,14 +533,14 @@ export class DynamicBone extends Script {
     }
   }
 
-  updateParticles2(timeVar: number): void {
+  private _updateParticles2(timeVar: number): void {
     for (let i = 0; i < this._particleTrees.length; i++) {
-      this.updateSingleParticles2(this._particleTrees[i], timeVar);
+      this._updateSingleParticles2(this._particleTrees[i], timeVar);
     }
   }
 
-  updateSingleParticles2(pt: ParticleTree, timeVar: number): void {
-    const movePlane = new Plane();
+  private _updateSingleParticles2(pt: ParticleTree, timeVar: number): void {
+    const movePlane = DynamicBone._tempPlane;
 
     for (let i = 0; i < pt._particles.length; i++) {
       const p = pt._particles[i];
@@ -535,7 +556,8 @@ export class DynamicBone extends Script {
       // keep shape
       const stiffness = MathCommon.lerp(1.0, p._stiffness, this._weight);
       if (stiffness > 0 || p._elasticity > 0) {
-        const m0 = p0._transformLocalToWorldMatrix;
+        const m0 = DynamicBone._tempMatrix;
+        m0.copyFrom(p0._transformLocalToWorldMatrix);
         m0.elements[12] = p0._position.x;
         m0.elements[13] = p0._position.y;
         m0.elements[14] = p0._position.z;
@@ -597,25 +619,109 @@ export class DynamicBone extends Script {
     }
   }
 
-  applyParticlesToTransforms(): void {
+  private _applyParticlesToTransforms(): void {
     for (let i = 0; i < this._particleTrees.length; i++) {
-      this.applySingleParticlesToTransforms(this._particleTrees[i]);
+      this._applySingleParticlesToTransforms(this._particleTrees[i]);
     }
   }
 
-  applySingleParticlesToTransforms(pt: ParticleTree): void {}
+  private _applySingleParticlesToTransforms(pt: ParticleTree): void {
+    for (let i = 0; i < pt._particles.length; i++) {
+      let p = pt._particles[i];
+      let p0 = pt._particles[p._parentIndex];
 
-  skipUpdateParticles(): void {
-    for (let i = 0; i < this._particleTrees.length; i++) {
-      this.skipUpdateSingleParticles(this._particleTrees[i]);
+      // do not modify bone orientation if has more then one child
+      if (p0._childCount <= 1) {
+        let localPos: Vector3;
+        let transform = p._transform;
+        if (transform != null) {
+          localPos.copyFrom(transform.position);
+        } else {
+          localPos.copyFrom(p._endOffset);
+        }
+        let v0 = DynamicBone._tempVec1;
+        Vector3.transformToVec3(localPos, p0._transform!.worldMatrix, v0);
+        let v1 = DynamicBone._tempVec2;
+        Vector3.subtract(p._position, p0._position, v1);
+        let rot = DynamicBone._tempQuat;
+        MathCommon.shortestRotation(v0, v1, rot);
+        Quaternion.multiply(rot, p0._transform!.worldRotationQuaternion, rot);
+        p0._transform.worldRotationQuaternion.copyFrom(rot.normalize());
+      }
+
+      let transform = p._transform;
+      if (transform != null) {
+        transform.worldPosition.copyFrom(p._position);
+      }
     }
   }
 
-  skipUpdateSingleParticles(pt: ParticleTree): void {}
+  private _skipUpdateParticles(): void {
+    for (let i = 0; i < this._particleTrees.length; i++) {
+      this._skipUpdateSingleParticles(this._particleTrees[i]);
+    }
+  }
+
+  private _skipUpdateSingleParticles(pt: ParticleTree): void {
+    for (let i = 0; i < pt._particles.length; i++) {
+      let p = pt._particles[i];
+      if (p._parentIndex >= 0) {
+        p._prevPosition.add(this._objectMove);
+        p._position.add(this._objectMove);
+
+        let p0 = pt._particles[p._parentIndex];
+
+        if (p._transform != null) {
+          Vector3.subtract(p0._transformPosition, p._transformPosition, DynamicBone._tempVec1);
+        } else {
+          Vector3.transformToVec3(p._endOffset, p0._transformLocalToWorldMatrix, DynamicBone._tempVec1);
+        }
+        const restLen = DynamicBone._tempVec1.length();
+
+        // keep shape
+        let stiffness = MathCommon.lerp(1.0, p._stiffness, this._weight);
+        if (stiffness > 0) {
+          let m0 = DynamicBone._tempMatrix;
+          m0.copyFrom(p0._transformLocalToWorldMatrix);
+          m0.elements[12] = p0._position.x;
+          m0.elements[13] = p0._position.y;
+          m0.elements[14] = p0._position.z;
+
+          let restPos: Vector3 = DynamicBone._tempVec1;
+          if (p._transform != null) {
+            Vector3.transformToVec3(p._transformLocalPosition, m0, restPos);
+          } else {
+            Vector3.transformToVec3(p._endOffset, m0, restPos);
+          }
+
+          let d = restPos;
+          d.subtract(p._position);
+          let len = d.length();
+          let maxlen = restLen * (1 - stiffness) * 2;
+          if (len > maxlen) {
+            d.scale((len - maxlen) / len);
+            p._position.add(d);
+          }
+        }
+
+        // keep length
+        let dd = DynamicBone._tempVec1;
+        Vector3.subtract(p0._position, p._position, dd);
+        let leng = dd.length();
+        if (leng > 0) {
+          dd.scale((leng - restLen) / leng);
+          p._position.add(dd);
+        }
+      } else {
+        p._prevPosition.copyFrom(p._position);
+        p._position.copyFrom(p._transformPosition);
+      }
+    }
+  }
 }
 
 class Particle {
-  _transform: Transform;
+  _transform: Transform = null;
   _parentIndex: number = 0;
   _childCount: number = 0;
   _damping: number = 0;
@@ -640,7 +746,7 @@ class Particle {
 }
 
 class ParticleTree {
-  _root: Transform;
+  _root: Transform = null;
   _localGravity = new Vector3();
   _rootWorldToLocalMatrix = new Matrix();
   _boneTotalLength: number = 0;
