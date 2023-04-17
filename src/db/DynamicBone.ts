@@ -90,19 +90,63 @@ export class DynamicBone extends Script {
   private _deltaTime: number = 0;
   private _effectiveColliders: DynamicBoneColliderBase[] = [];
 
-  override onStart(): void {}
+  override onStart(): void {
+    this.setupParticles();
+  }
 
-  override onEnable(): void {}
+  override onEnable(): void {
+    this.resetParticlesPosition();
+  }
 
-  override onDisable(): void {}
+  override onDisable(): void {
+    this.initTransforms();
+  }
 
-  override onPhysicsUpdate(): void {}
+  override onPhysicsUpdate(): void {
+    if (this.updateMode == UpdateMode.AnimatePhysics) {
+      this.preUpdate();
+    }
+  }
 
-  override onUpdate(deltaTime: number): void {}
+  override onUpdate(deltaTime: number): void {
+    if (this.updateMode != UpdateMode.AnimatePhysics) {
+      this.preUpdate();
+    }
+    DynamicBone._updateCount += 1;
+  }
 
-  override onLateUpdate(deltaTime: number): void {}
+  override onLateUpdate(deltaTime: number): void {
+    if (this._preUpdateCount == 0) {
+      return;
+    }
 
-  public setWeight(w: number) {}
+    if (DynamicBone._updateCount > 0) {
+      DynamicBone._updateCount = 0;
+      DynamicBone._prepareFrame += 1;
+    }
+
+    this.setWeight(this.blendWeight);
+
+    this.checkDistance();
+    if (this.isNeedUpdate()) {
+      this.prepare();
+      this.updateParticles();
+      this.applyParticlesToTransforms();
+    }
+    this._preUpdateCount = 0;
+  }
+
+  public setWeight(w: number): void {
+    if (this._weight != w) {
+      if (w == 0) {
+        this.initTransforms();
+      } else if (this._weight == 0) {
+        this.resetParticlesPosition();
+      }
+      this._weight = w;
+      this.blendWeight = w;
+    }
+  }
 
   public getWeight(): number {
     return this._weight;
@@ -114,43 +158,84 @@ export class DynamicBone extends Script {
 
   setupParticles(): void {}
 
-  updateParameters(): void {}
+  updateParameters(): void {
+    this.setWeight(this.blendWeight);
+
+    for (let i = 0; i < this._particleTrees.length; i++) {
+      this.updateSingleParameters(this._particleTrees[i]);
+    }
+  }
 
   updateSingleParameters(pt: ParticleTree): void {}
 
-  appendParticleTree(root: Transform): void {}
+  appendParticleTree(root: Transform): void {
+    let pt = new ParticleTree();
+    pt._root = root;
+    Matrix.invert(root.worldMatrix, pt._rootWorldToLocalMatrix);
+    this._particleTrees.push(pt);
+  }
 
   appendParticles(pt: ParticleTree, b: Transform, parentIndex: number, boneLength: number): void {}
 
   isNeedUpdate(): boolean {
-    return false;
+    return this._weight > 0 && !(this.distantDisable && this._distantDisabled);
   }
 
-  preUpdate(): void {}
+  preUpdate(): void {
+    if (this.isNeedUpdate()) {
+      this.initTransforms();
+    }
+    this._preUpdateCount += 1;
+  }
 
   checkDistance(): void {}
 
-  initTransforms(): void {}
+  initTransforms(): void {
+    for (let i = 0; i < this._particleTrees.length; i++) {
+      this.initSingleTransforms(this._particleTrees[i]);
+    }
+  }
 
   initSingleTransforms(pt: ParticleTree): void {}
 
-  resetParticlesPosition(): void {}
+  resetParticlesPosition(): void {
+    for (let i = 0; i < this._particleTrees.length; i++) {
+      this.resetSingleParticlesPosition(this._particleTrees[i]);
+    }
+    this._objectPrevPosition.copyFrom(this.entity.transform.worldPosition);
+  }
 
   resetSingleParticlesPosition(pt: ParticleTree): void {}
 
-  updateParticles1(timeVar: number, loopIndex: number): void {}
+  updateParticles1(timeVar: number, loopIndex: number): void {
+    for (let i = 0; i < this._particleTrees.length; i++) {
+      this.updateSingleParticles1(this._particleTrees[i], timeVar, loopIndex);
+    }
+  }
 
   updateSingleParticles1(pt: ParticleTree, timeVar: number, loopIndex: number): void {}
 
-  updateParticles2(timeVar: number): void {}
+  updateParticles2(timeVar: number): void {
+    for (let i = 0; i < this._particleTrees.length; i++) {
+      this.updateSingleParticles2(this._particleTrees[i], timeVar);
+    }
+  }
 
   updateSingleParticles2(pt: ParticleTree, timeVar: number): void {}
 
-  applyParticlesToTransforms(): void {}
+  applyParticlesToTransforms(): void {
+    for (let i = 0; i < this._particleTrees.length; i++) {
+      this.applySingleParticlesToTransforms(this._particleTrees[i]);
+    }
+  }
 
   applySingleParticlesToTransforms(pt: ParticleTree): void {}
 
-  skipUpdateParticles(): void {}
+  skipUpdateParticles(): void {
+    for (let i = 0; i < this._particleTrees.length; i++) {
+      this.skipUpdateSingleParticles(this._particleTrees[i]);
+    }
+  }
 
   skipUpdateSingleParticles(pt: ParticleTree): void {}
 }
