@@ -542,7 +542,7 @@ export class DynamicBone extends Script {
   private _updateSingleParticles2(pt: ParticleTree, timeVar: number): void {
     const movePlane = DynamicBone._tempPlane;
 
-    for (let i = 0; i < pt._particles.length; i++) {
+    for (let i = 1; i < pt._particles.length; i++) {
       const p = pt._particles[i];
       const p0 = pt._particles[p._parentIndex];
 
@@ -626,7 +626,7 @@ export class DynamicBone extends Script {
   }
 
   private _applySingleParticlesToTransforms(pt: ParticleTree): void {
-    for (let i = 0; i < pt._particles.length; i++) {
+    for (let i = 1; i < pt._particles.length; i++) {
       let p = pt._particles[i];
       let p0 = pt._particles[p._parentIndex];
 
@@ -635,9 +635,9 @@ export class DynamicBone extends Script {
         let localPos: Vector3;
         let transform = p._transform;
         if (transform != null) {
-          localPos.copyFrom(transform.position);
+          localPos = transform.position;
         } else {
-          localPos.copyFrom(p._endOffset);
+          localPos = p._endOffset;
         }
         let v0 = DynamicBone._tempVec1;
         Vector3.transformToVec3(localPos, p0._transform!.worldMatrix, v0);
