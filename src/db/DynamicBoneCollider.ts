@@ -1,5 +1,6 @@
 import { Bound, Direction, DynamicBoneColliderBase } from "./DynamicBoneColliderBase";
-import { MathUtil, Vector3 } from "oasis-engine";
+import { Vector3 } from "oasis-engine";
+import { MathCommon } from "./MathCommon";
 
 export class DynamicBoneCollider extends DynamicBoneColliderBase {
   private static tempVec1 = new Vector3();
@@ -380,7 +381,7 @@ export class DynamicBoneCollider extends DynamicBoneColliderBase {
 
         dir.scale(1 / dirlen);
         const klen = Vector3.dot(d, dir);
-        const r = DynamicBoneCollider.lerp(capsuleRadius0, capsuleRadius1, klen / dirlen) + particleRadius;
+        const r = MathCommon.lerp(capsuleRadius0, capsuleRadius1, klen / dirlen) + particleRadius;
         const r2 = r * r;
 
         if (qlen2 > 0 && qlen2 < r2) {
@@ -444,7 +445,7 @@ export class DynamicBoneCollider extends DynamicBoneColliderBase {
 
         dir.scale(1 / dirlen);
         const klen = Vector3.dot(d, dir);
-        const r = DynamicBoneCollider.lerp(capsuleRadius0, capsuleRadius1, klen / dirlen) - particleRadius;
+        const r = MathCommon.lerp(capsuleRadius0, capsuleRadius1, klen / dirlen) - particleRadius;
         const r2 = r * r;
 
         if (qlen2 > r2) {
@@ -456,9 +457,5 @@ export class DynamicBoneCollider extends DynamicBoneColliderBase {
       }
     }
     return false;
-  }
-
-  public static lerp(a: number, b: number, t: number): number {
-    return a + (b - a) * MathUtil.clamp(t, 0, 1);
   }
 }

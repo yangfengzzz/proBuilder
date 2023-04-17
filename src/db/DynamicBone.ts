@@ -1,5 +1,6 @@
-import { MathUtil, Matrix, Quaternion, Script, Transform, Vector3 } from "oasis-engine";
+import { CollisionUtil, MathUtil, Matrix, Plane, Quaternion, Script, Transform, Vector3 } from "oasis-engine";
 import { DynamicBoneColliderBase } from "./DynamicBoneColliderBase";
+import { MathCommon } from "./MathCommon";
 
 export enum UpdateMode {
   Normal,
@@ -517,7 +518,84 @@ export class DynamicBone extends Script {
     }
   }
 
-  updateSingleParticles2(pt: ParticleTree, timeVar: number): void {}
+  updateSingleParticles2(pt: ParticleTree, timeVar: number): void {
+    const movePlane = new Plane();
+
+    for (let i = 0; i < pt._particles.length; i++) {
+      const p = pt._particles[i];
+      const p0 = pt._particles[p._parentIndex];
+
+      if (p._transform != null) {
+        Vector3.subtract(p0._transformPosition, p._transformPosition, DynamicBone._tempVec1);
+      } else {
+        Vector3.transformToVec3(p._endOffset, p0._transformLocalToWorldMatrix, DynamicBone._tempVec1);
+      }
+      const restLen = DynamicBone._tempVec1.length();
+
+      // keep shape
+      const stiffness = MathCommon.lerp(1.0, p._stiffness, this._weight);
+      if (stiffness > 0 || p._elasticity > 0) {
+        const m0 = p0._transformLocalToWorldMatrix;
+        m0.elements[12] = p0._position.x;
+        m0.elements[13] = p0._position.y;
+        m0.elements[14] = p0._position.z;
+
+        const restPos: Vector3 = DynamicBone._tempVec1;
+        if (p._transform != null) {
+          Vector3.transformToVec3(p._transformLocalPosition, m0, restPos);
+        } else {
+          Vector3.transformToVec3(p._endOffset, m0, restPos);
+        }
+
+        const d = DynamicBone._tempVec2;
+        Vector3.subtract(restPos, p._position, d);
+        d.scale(p._elasticity * timeVar);
+        p._position.add(d);
+
+        if (stiffness > 0) {
+          Vector3.subtract(restPos, p._position, d);
+          const len = d.length();
+          const maxlen = restLen * (1 - stiffness) * 2;
+          if (len > maxlen) {
+            d.scale((len - maxlen) / len);
+            p._position.add(d);
+          }
+        }
+      }
+
+      // collide
+      if (this._effectiveColliders.length != 0) {
+        const particleRadius = p._radius * this._objectScale;
+        for (let j = 0; j < this._effectiveColliders.length; j++) {
+          const c = this._effectiveColliders[j];
+          p._isCollide = p._isCollide || c.collide(p._position, particleRadius);
+        }
+      }
+
+      // freeze axis, project to plane
+      if (this.freezeAxis != FreezeAxis.None) {
+        const planeNormal = DynamicBone._tempVec1;
+        const elements = p0._transformLocalToWorldMatrix.elements;
+        planeNormal.x = elements[(this.freezeAxis - 1) * 4];
+        planeNormal.y = elements[(this.freezeAxis - 1) * 4 + 1];
+        planeNormal.z = elements[(this.freezeAxis - 1) * 4 + 2];
+        planeNormal.normalize();
+        movePlane.normal.copyFrom(planeNormal);
+        movePlane.distance = -Vector3.dot(planeNormal, p0._position);
+        planeNormal.scale(CollisionUtil.distancePlaneAndPoint(movePlane, p._position));
+        p._position.subtract(planeNormal);
+      }
+
+      // keep length
+      const dd = DynamicBone._tempVec1;
+      Vector3.subtract(p0._position, p._position, dd);
+      const leng = dd.length();
+      if (leng > 0) {
+        dd.scale((leng - restLen) / leng);
+        p._position.add(dd);
+      }
+    }
+  }
 
   applyParticlesToTransforms(): void {
     for (let i = 0; i < this._particleTrees.length; i++) {
