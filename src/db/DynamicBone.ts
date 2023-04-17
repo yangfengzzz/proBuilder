@@ -152,9 +152,85 @@ export class DynamicBone extends Script {
     return this._weight;
   }
 
-  prepare(): void {}
+  prepare(): void {
+    this._deltaTime = this.engine.time.deltaTime;
 
-  updateParticles(): void {}
+    const transform = this.entity.transform!;
+    this._objectScale = Math.abs(transform.lossyWorldScale.x);
+    Vector3.subtract(transform.worldPosition, this._objectPrevPosition, this._objectMove);
+    this._objectPrevPosition.copyFrom(transform.worldPosition);
+
+    for (let i = 0; i < this._particleTrees.length; i++) {
+      const pt = this._particleTrees[i];
+      Vector3.transformToVec3(pt._localGravity, pt._root!.worldMatrix, pt._restGravity);
+
+      for (let j = 0; j < pt._particles.length; j++) {
+        const p = pt._particles[j];
+        const transform = p._transform;
+        if (transform != null) {
+          p._transformPosition.copyFrom(transform.worldPosition);
+          p._transformLocalPosition.copyFrom(transform.position);
+          p._transformLocalToWorldMatrix.copyFrom(transform.worldMatrix);
+        }
+      }
+    }
+
+    this._effectiveColliders.length = 0;
+
+    for (let i = 0; i < this.colliders.length; i++) {
+      const c = this.colliders[i];
+      if (c.enabled) {
+        this._effectiveColliders.length = 0;
+        this._effectiveColliders.push(c);
+
+        if (c.prepareFrame != DynamicBone._prepareFrame) {
+          // colliders used by many dynamic bones only prepares once
+          c.prepare();
+          c.prepareFrame = DynamicBone._prepareFrame;
+        }
+      }
+    }
+  }
+
+  updateParticles(): void {
+    if (this._particleTrees.length <= 0) {
+      return;
+    }
+
+    let loop = 1;
+    let timeVar: number = 1;
+    const dt = this._deltaTime;
+
+    if (this.updateMode == UpdateMode.Default) {
+      if (this.updateRate > 0) {
+        timeVar = dt * this.updateRate;
+      }
+    } else {
+      if (this.updateRate > 0) {
+        const frameTime = 1.0 / this.updateRate;
+        this._time += dt;
+        loop = 0;
+
+        while (this._time >= frameTime) {
+          this._time -= frameTime;
+          loop += 1;
+          if (loop >= 3) {
+            this._time = 0;
+            break;
+          }
+        }
+      }
+    }
+
+    if (loop > 0) {
+      for (let i = 0; i < loop; i++) {
+        this.updateParticles1(timeVar, i);
+        this.updateParticles2(timeVar);
+      }
+    } else {
+      this.skipUpdateParticles();
+    }
+  }
 
   setupParticles(): void {}
 
