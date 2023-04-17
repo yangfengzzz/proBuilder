@@ -16,6 +16,8 @@ export enum FreezeAxis {
 }
 
 export class DynamicBone extends Script {
+  private static _tempVec1 = new Vector3();
+
   private static _updateCount: number = 0;
   private static _prepareFrame: number = 0;
 
@@ -241,8 +243,8 @@ export class DynamicBone extends Script {
 
     if (this.roots.length != 0) {
       for (let i = 0; i < this.roots.length; i++) {
-        let root = this.roots[i];
-        let result = this._particleTrees.find((value, index, obj) => {
+        const root = this.roots[i];
+        const result = this._particleTrees.find((value, index, obj) => {
           return value._root === root;
         });
 
@@ -253,13 +255,13 @@ export class DynamicBone extends Script {
       }
     }
 
-    let transform = this.entity.transform!;
+    const transform = this.entity.transform!;
     this._objectScale = Math.abs(transform.lossyWorldScale.x);
     this._objectPrevPosition.copyFrom(transform.worldPosition);
     this._objectMove.set(0, 0, 0);
 
     for (let i = 0; i < this._particleTrees.length; i++) {
-      let pt = this._particleTrees[i];
+      const pt = this._particleTrees[i];
       this.appendParticles(pt, pt._root, -1, 0);
     }
     this.updateParameters();
@@ -277,7 +279,7 @@ export class DynamicBone extends Script {
     Vector3.transformToVec3(this.gravity, pt._rootWorldToLocalMatrix, pt._localGravity);
 
     for (let i = 0; i < pt._particles.length; i++) {
-      let p = pt._particles[i];
+      const p = pt._particles[i];
       p._damping = this.damping;
       p._elasticity = this.elasticity;
       p._stiffness = this.stiffness;
@@ -295,13 +297,89 @@ export class DynamicBone extends Script {
   }
 
   appendParticleTree(root: Transform): void {
-    let pt = new ParticleTree();
+    const pt = new ParticleTree();
     pt._root = root;
     Matrix.invert(root.worldMatrix, pt._rootWorldToLocalMatrix);
     this._particleTrees.push(pt);
   }
 
-  appendParticles(pt: ParticleTree, b: Transform, parentIndex: number, boneLength: number): void {}
+  appendParticles(pt: ParticleTree, b: Transform, parentIndex: number, boneLength: number): void {
+    const p = new Particle();
+    p._transform = b;
+    p._parentIndex = parentIndex;
+
+    if (b != null) {
+      p._position.copyFrom(b.worldPosition);
+      p._prevPosition.copyFrom(b.worldPosition);
+      p._initLocalPosition.copyFrom(b.position);
+      p._initLocalRotation.copyFrom(b.rotationQuaternion);
+    } // end bone
+    else {
+      const pb = pt._particles[parentIndex]._transform!;
+      const invertMat = new Matrix();
+      Matrix.invert(pb.worldMatrix, invertMat);
+      if (this.endLength > 0) {
+        const ppb = pb.entity.parent;
+        if (ppb != null) {
+          Vector3.scale(pb.worldPosition, 2, DynamicBone._tempVec1);
+          Vector3.subtract(DynamicBone._tempVec1, ppb.transform.worldPosition, DynamicBone._tempVec1);
+          Vector3.transformCoordinate(DynamicBone._tempVec1, invertMat, p._endOffset);
+          p._endOffset.scale(this.endLength);
+        } else {
+          p._endOffset.set(this.endLength, 0, 0);
+        }
+      } else {
+        const offset = DynamicBone._tempVec1;
+        Vector3.transformToVec3(this.endOffset, this.entity.transform.worldMatrix, offset);
+        offset.add(pb.worldPosition);
+        Vector3.transformCoordinate(offset, invertMat, p._endOffset);
+      }
+      const offset = DynamicBone._tempVec1;
+      Vector3.transformCoordinate(p._endOffset, pb.worldMatrix, offset);
+      p._position.copyFrom(offset);
+      p._prevPosition.copyFrom(offset);
+      p._initLocalPosition.set(0, 0, 0);
+      p._initLocalRotation.set(0, 0, 0, 1);
+    }
+
+    if (parentIndex >= 0) {
+      Vector3.subtract(pt._particles[parentIndex]._transform!.worldPosition, p._position, DynamicBone._tempVec1);
+      boneLength += DynamicBone._tempVec1.length();
+      p._boneLength = boneLength;
+      pt._boneTotalLength = Math.max(pt._boneTotalLength, boneLength);
+      pt._particles[parentIndex]._childCount += 1;
+    }
+
+    const index = pt._particles.length;
+    pt._particles.push(p);
+
+    if (b != null) {
+      for (let i = 0; i < b.entity.children.length; i++) {
+        const child = b.entity.children[i];
+        let exclude = false;
+        if (this.exclusions.length != 0) {
+          const result = this.exclusions.find((value, index, obj) => {
+            return value === child.transform;
+          });
+          exclude = result != undefined;
+        }
+
+        DynamicBone._tempVec1.set(0, 0, 0);
+        if (!exclude) {
+          this.appendParticles(pt, child.transform, index, boneLength);
+        } else if (this.endLength > 0 || !Vector3.equals(this.endOffset, DynamicBone._tempVec1)) {
+          this.appendParticles(pt, null, index, boneLength);
+        }
+      }
+
+      if (
+        b.entity.children.length == 0 &&
+        (this.endLength > 0 || !Vector3.equals(this.endOffset, DynamicBone._tempVec1))
+      ) {
+        this.appendParticles(pt, null, index, boneLength);
+      }
+    }
+  }
 
   isNeedUpdate(): boolean {
     return this._weight > 0 && !(this.distantDisable && this._distantDisabled);
@@ -314,7 +392,24 @@ export class DynamicBone extends Script {
     this._preUpdateCount += 1;
   }
 
-  checkDistance(): void {}
+  checkDistance(): void {
+    if (!this.distantDisable) {
+      return;
+    }
+
+    const rt = this.referenceObject;
+    if (rt != null) {
+      Vector3.subtract(rt.worldPosition, this.entity.transform.worldPosition, DynamicBone._tempVec1);
+      const d2 = DynamicBone._tempVec1.lengthSquared();
+      const disable = d2 > this.distanceToObject * this.distanceToObject;
+      if (disable != this._distantDisabled) {
+        if (!disable) {
+          this.resetParticlesPosition();
+        }
+        this._distantDisabled = disable;
+      }
+    }
+  }
 
   initTransforms(): void {
     for (let i = 0; i < this._particleTrees.length; i++) {
