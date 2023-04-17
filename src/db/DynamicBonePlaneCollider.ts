@@ -4,12 +4,10 @@ import { CollisionUtil, Plane, Vector3 } from "oasis-engine";
 export class DynamicBonePlaneCollider extends DynamicBoneColliderBase {
   private static tempVec = new Vector3();
 
-  public plane = new Plane();
+  /** @internal */
+  _plane = new Plane();
 
-  /**
-   * @override
-   */
-  prepare() {
+  override prepare() {
     let normal: Vector3;
     switch (this.direction) {
       case Direction.X:
@@ -23,27 +21,26 @@ export class DynamicBonePlaneCollider extends DynamicBoneColliderBase {
         break;
     }
 
-    let p = DynamicBonePlaneCollider.tempVec;
+    const plane = this._plane;
+    const p = DynamicBonePlaneCollider.tempVec;
     Vector3.transformCoordinate(this.center, this.entity.transform.worldMatrix, p);
-    Vector3.normalize(normal, this.plane.normal);
-    this.plane.distance = Vector3.dot(this.plane.normal, p);
+    Vector3.normalize(normal, plane.normal);
+    plane.distance = Vector3.dot(plane.normal, p);
   }
 
-  /**
-   * @override
-   */
-  collide(particlePosition: Vector3, particleRadius: number): boolean {
-    let d = CollisionUtil.distancePlaneAndPoint(this.plane, particlePosition);
+  override collide(particlePosition: Vector3, particleRadius: number): boolean {
+    const plane = this._plane;
+    const d = CollisionUtil.distancePlaneAndPoint(plane, particlePosition);
 
     if (this.bound == Bound.Outside) {
       if (d < 0) {
-        Vector3.scale(this.plane.normal, d, DynamicBonePlaneCollider.tempVec);
+        Vector3.scale(plane.normal, d, DynamicBonePlaneCollider.tempVec);
         particlePosition.subtract(DynamicBonePlaneCollider.tempVec);
         return true;
       }
     } else {
       if (d > 0) {
-        Vector3.scale(this.plane.normal, d, DynamicBonePlaneCollider.tempVec);
+        Vector3.scale(plane.normal, d, DynamicBonePlaneCollider.tempVec);
         particlePosition.subtract(DynamicBonePlaneCollider.tempVec);
         return true;
       }
