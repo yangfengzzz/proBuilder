@@ -1,9 +1,10 @@
 import { Bound, Direction, DynamicBoneColliderBase } from "./DynamicBoneColliderBase";
-import { Vector3 } from "oasis-engine";
+import { MathUtil, Vector3 } from "oasis-engine";
 
 export class DynamicBoneCollider extends DynamicBoneColliderBase {
   private static tempVec1 = new Vector3();
   private static tempVec2 = new Vector3();
+  private static tempVec3 = new Vector3();
 
   /// The radius of the sphere or capsule.
   public radius: number = 0.5;
@@ -203,6 +204,19 @@ export class DynamicBoneCollider extends DynamicBoneColliderBase {
     sphereCenter: Vector3,
     sphereRadius: number
   ): boolean {
+    const r = sphereRadius - particleRadius;
+    const r2 = r * r;
+    const d = DynamicBoneCollider.tempVec1;
+    Vector3.subtract(particlePosition, sphereCenter, d);
+    const dlen2 = d.lengthSquared();
+
+    // if is outside sphere, project onto sphere surface
+    if (dlen2 > r2) {
+      const dlen = Math.sqrt(dlen2);
+      d.scale(r / dlen);
+      Vector3.add(sphereCenter, d, particlePosition);
+      return true;
+    }
     return false;
   }
 
@@ -214,6 +228,50 @@ export class DynamicBoneCollider extends DynamicBoneColliderBase {
     capsuleRadius: number,
     dirlen: number
   ): boolean {
+    const r = capsuleRadius + particleRadius;
+    const r2 = r * r;
+    const dir = DynamicBoneCollider.tempVec1;
+    Vector3.subtract(capsuleP1, capsuleP0, dir);
+    const d = DynamicBoneCollider.tempVec2;
+    Vector3.subtract(particlePosition, capsuleP0, d);
+    const t = Vector3.dot(d, dir);
+
+    if (t <= 0) {
+      // check sphere1
+      const dlen2 = d.lengthSquared();
+      if (dlen2 > 0 && dlen2 < r2) {
+        const dlen = Math.sqrt(dlen2);
+        d.scale(r / dlen);
+        Vector3.add(capsuleP0, d, particlePosition);
+        return true;
+      }
+    } else {
+      const dirlen2 = dirlen * dirlen;
+      if (t >= dirlen2) {
+        // check sphere2
+        const d = DynamicBoneCollider.tempVec3;
+        Vector3.subtract(particlePosition, capsuleP1, d);
+        const dlen2 = d.lengthSquared();
+        if (dlen2 > 0 && dlen2 < r2) {
+          const dlen = Math.sqrt(dlen2);
+          d.scale(r / dlen);
+          Vector3.add(capsuleP1, d, particlePosition);
+          return true;
+        }
+      } else {
+        // check cylinder
+        const q = DynamicBoneCollider.tempVec3;
+        dir.scale(t / dirlen2);
+        Vector3.subtract(d, dir, q);
+        const qlen2 = q.lengthSquared();
+        if (qlen2 > 0 && qlen2 < r2) {
+          const qlen = Math.sqrt(qlen2);
+          q.scale((r - qlen) / qlen);
+          particlePosition.add(q);
+          return true;
+        }
+      }
+    }
     return false;
   }
 
@@ -225,6 +283,50 @@ export class DynamicBoneCollider extends DynamicBoneColliderBase {
     capsuleRadius: number,
     dirlen: number
   ): boolean {
+    const r = capsuleRadius - particleRadius;
+    const r2 = r * r;
+    const dir = DynamicBoneCollider.tempVec1;
+    Vector3.subtract(capsuleP1, capsuleP0, dir);
+    const d = DynamicBoneCollider.tempVec2;
+    Vector3.subtract(particlePosition, capsuleP0, d);
+    const t = Vector3.dot(d, dir);
+
+    if (t <= 0) {
+      // check sphere1
+      const dlen2 = d.lengthSquared();
+      if (dlen2 > r2) {
+        const dlen = Math.sqrt(dlen2);
+        d.scale(r / dlen);
+        Vector3.add(capsuleP0, d, particlePosition);
+        return true;
+      }
+    } else {
+      const dirlen2 = dirlen * dirlen;
+      if (t >= dirlen2) {
+        // check sphere2
+        const d = DynamicBoneCollider.tempVec3;
+        Vector3.subtract(particlePosition, capsuleP1, d);
+        const dlen2 = d.lengthSquared();
+        if (dlen2 > r2) {
+          const dlen = Math.sqrt(dlen2);
+          d.scale(r / dlen);
+          Vector3.add(capsuleP1, d, particlePosition);
+          return true;
+        }
+      } else {
+        // check cylinder
+        const q = DynamicBoneCollider.tempVec3;
+        dir.scale(t / dirlen2);
+        Vector3.subtract(d, dir, q);
+        const qlen2 = q.lengthSquared();
+        if (qlen2 > r2) {
+          const qlen = Math.sqrt(qlen2);
+          q.scale((r - qlen) / qlen);
+          particlePosition.add(q);
+          return true;
+        }
+      }
+    }
     return false;
   }
 
@@ -237,6 +339,58 @@ export class DynamicBoneCollider extends DynamicBoneColliderBase {
     capsuleRadius1: number,
     dirlen: number
   ): boolean {
+    const dir = DynamicBoneCollider.tempVec1;
+    Vector3.subtract(capsuleP1, capsuleP0, dir);
+    const d = DynamicBoneCollider.tempVec2;
+    Vector3.subtract(particlePosition, capsuleP0, d);
+    const t = Vector3.dot(d, dir);
+
+    if (t <= 0) {
+      // check sphere1
+      const r = capsuleRadius0 + particleRadius;
+      const r2 = r * r;
+      const dlen2 = d.lengthSquared();
+      if (dlen2 > 0 && dlen2 < r2) {
+        const dlen = Math.sqrt(dlen2);
+        d.scale(r / dlen);
+        Vector3.add(capsuleP0, d, particlePosition);
+        return true;
+      }
+    } else {
+      const dirlen2 = dirlen * dirlen;
+      if (t >= dirlen2) {
+        // check sphere2
+        const r = capsuleRadius1 + particleRadius;
+        const r2 = r * r;
+        const d = DynamicBoneCollider.tempVec3;
+        Vector3.subtract(particlePosition, capsuleP1, d);
+        const dlen2 = d.lengthSquared();
+        if (dlen2 > 0 && dlen2 < r2) {
+          const dlen = Math.sqrt(dlen2);
+          d.scale(r / dlen);
+          Vector3.add(capsuleP1, d, particlePosition);
+          return true;
+        }
+      } else {
+        // check cylinder
+        const q = DynamicBoneCollider.tempVec3;
+        Vector3.scale(dir, t / dirlen2, q);
+        Vector3.subtract(d, q, q);
+        const qlen2 = q.lengthSquared();
+
+        dir.scale(1 / dirlen);
+        const klen = Vector3.dot(d, dir);
+        const r = DynamicBoneCollider.lerp(capsuleRadius0, capsuleRadius1, klen / dirlen) + particleRadius;
+        const r2 = r * r;
+
+        if (qlen2 > 0 && qlen2 < r2) {
+          const qlen = Math.sqrt(qlen2);
+          q.scale((r - qlen) / qlen);
+          particlePosition.add(q);
+          return true;
+        }
+      }
+    }
     return false;
   }
 
@@ -249,6 +403,62 @@ export class DynamicBoneCollider extends DynamicBoneColliderBase {
     capsuleRadius1: number,
     dirlen: number
   ): boolean {
+    const dir = DynamicBoneCollider.tempVec1;
+    Vector3.subtract(capsuleP1, capsuleP0, dir);
+    const d = DynamicBoneCollider.tempVec2;
+    Vector3.subtract(particlePosition, capsuleP0, d);
+    const t = Vector3.dot(d, dir);
+
+    if (t <= 0) {
+      // check sphere1
+      const r = capsuleRadius0 - particleRadius;
+      const r2 = r * r;
+      const dlen2 = d.lengthSquared();
+      if (dlen2 > r2) {
+        const dlen = Math.sqrt(dlen2);
+        d.scale(r / dlen);
+        Vector3.add(capsuleP0, d, particlePosition);
+        return true;
+      }
+    } else {
+      const dirlen2 = dirlen * dirlen;
+      if (t >= dirlen2) {
+        // check sphere2
+        const r = capsuleRadius1 - particleRadius;
+        const r2 = r * r;
+        const d = DynamicBoneCollider.tempVec3;
+        Vector3.subtract(particlePosition, capsuleP1, d);
+        const dlen2 = d.lengthSquared();
+        if (dlen2 > r2) {
+          const dlen = Math.sqrt(dlen2);
+          d.scale(r / dlen);
+          Vector3.add(capsuleP1, d, particlePosition);
+          return true;
+        }
+      } else {
+        // check cylinder
+        const q = DynamicBoneCollider.tempVec3;
+        Vector3.scale(dir, t / dirlen2, q);
+        Vector3.subtract(d, q, q);
+        const qlen2 = q.lengthSquared();
+
+        dir.scale(1 / dirlen);
+        const klen = Vector3.dot(d, dir);
+        const r = DynamicBoneCollider.lerp(capsuleRadius0, capsuleRadius1, klen / dirlen) - particleRadius;
+        const r2 = r * r;
+
+        if (qlen2 > r2) {
+          const qlen = Math.sqrt(qlen2);
+          q.scale((r - qlen) / qlen);
+          particlePosition.add(q);
+          return true;
+        }
+      }
+    }
     return false;
+  }
+
+  public static lerp(a: number, b: number, t: number): number {
+    return a + (b - a) * MathUtil.clamp(t, 0, 1);
   }
 }
