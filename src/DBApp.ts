@@ -2,20 +2,20 @@ import {
   AmbientLight,
   AssetType,
   Camera,
-  PointLight,
-  Vector3,
-  WebGLEngine,
-  Script,
-  Entity,
   Color,
+  Entity,
   MeshRenderer,
+  PBRMaterial,
+  PointLight,
   PrimitiveMesh,
-  PBRMaterial
+  Script,
+  Vector3,
+  WebGLEngine
 } from "oasis-engine";
-
+import * as dat from "dat.gui";
 import { LitePhysics } from "@oasis-engine/physics-lite";
 import { OrbitControl } from "@oasis-engine-toolkit/controls";
-import { DynamicBone } from "./db/DynamicBone";
+import { DynamicBone, UpdateMode } from "./db/DynamicBone";
 import { DynamicBoneCollider } from "./db/DynamicBoneCollider";
 import { LineDrawer } from "./src";
 
@@ -69,7 +69,8 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
   const rootEntity = scene.createRootEntity("root");
   rootEntity.addComponent(MeshRenderer);
   rootEntity.addComponent(LineDrawer);
-  const collider = rootEntity.addComponent(ColliderDebugger);
+  const colliderDebugger = rootEntity.addComponent(ColliderDebugger);
+  const collider = colliderDebugger.collider;
 
   scene.ambientLight.diffuseSolidColor.set(1, 1, 1, 1);
   scene.ambientLight.diffuseIntensity = 1.2;
@@ -94,7 +95,7 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
 
   entity = createEntity(entity, new Vector3(1, -1, 0));
   dynamicBone.root = entity.transform;
-  collider.dynamicBone = dynamicBone;
+  colliderDebugger.dynamicBone = dynamicBone;
 
   entity = createEntity(entity, new Vector3(1, -1, 0));
   entity = createEntity(entity, new Vector3(1, -1, 0));
@@ -102,6 +103,21 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
   entity = createEntity(entity, new Vector3(1, -1, 0));
   entity = createEntity(entity, new Vector3(1, -1, 0));
   entity = createEntity(entity, new Vector3(1, -1, 0));
+
+  function openDebug(): void {
+    const info = {
+      colliderRadius: 1,
+      colliderY: 0
+    };
+
+    const gui = new dat.GUI();
+    gui.add(info, "colliderRadius", 0, 10).onChange((v) => {
+      collider.radius = v;
+    });
+    gui.add(info, "colliderY", -10, 10).onChange((v) => {
+      collider.entity.transform.worldPosition.y = v;
+    });
+  }
 
   engine.resourceManager
     .load<AmbientLight>({
@@ -110,6 +126,7 @@ WebGLEngine.create({ canvas: "canvas", physics: new LitePhysics() }).then((engin
     })
     .then((ambientLight) => {
       scene.ambientLight = ambientLight;
+      openDebug();
       engine.run();
     });
 });
